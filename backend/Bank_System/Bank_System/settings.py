@@ -65,9 +65,9 @@ CORS_ORIGIN_ALLOW_ALL = True # 新增的跨域访问设置
 
 CORS_ALLOW_CREDENTIALS = True # 允许携带cookie
 
-CORS_ORIGIN_WHITELIST = (
-    '*'
-)
+# CORS_ORIGIN_WHITELIST = (
+#     '*'
+# )
 
 CORS_ALLOW_METHODS = (
     'DELETE',

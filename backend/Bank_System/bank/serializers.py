@@ -22,7 +22,7 @@ class StaffSerializer(serializers.ModelSerializer):
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ['custom_id', 'custom_name', 'custom_phone', 'custom_address', 'contact_name', 'contact_phone', 'contact_email', 'contact_custom_relation']
+        fields = ['id', 'custom_id', 'custom_name', 'custom_phone', 'custom_address', 'contact_name', 'contact_phone', 'contact_email', 'contact_custom_relation']
 
 
 class AccountSerializer(serializers.ModelSerializer):

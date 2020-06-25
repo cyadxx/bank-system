@@ -46,7 +46,7 @@ class Staff(models.Model):
 
 
 class Customer(models.Model):
-    custom_id = models.CharField(primary_key=True, max_length=18)
+    custom_id = models.CharField(max_length=18, unique=True)    # 原先是主码，现在改为 unique 约束，主码使用自增 id
     custom_name = models.CharField(max_length=10)
     custom_phone = models.CharField(max_length=11)
     custom_address = models.CharField(max_length=100, blank=True, null=True)
@@ -99,7 +99,7 @@ class SavingsAccount(models.Model):
 class CustomerHasAccount(models.Model):
     ACC_TYPE_CHOICES = [('saveaccount', 'saving account'), ('checkaccount', 'check account')]
     # customer_custom = models.OneToOneField(Customer, models.DO_NOTHING, primary_key=True)
-    customer_custom = models.ForeignKey(Customer, models.DO_NOTHING)
+    customer = models.ForeignKey(Customer, models.DO_NOTHING)
     account_account = models.ForeignKey(Account, models.CASCADE)
     last_visit = models.DateTimeField()
     belong_branch = models.ForeignKey(Branch, models.DO_NOTHING, db_column='belong_branch', blank=True, null=True)
@@ -108,7 +108,7 @@ class CustomerHasAccount(models.Model):
     class Meta:
         managed = False
         db_table = 'customer_has_account'
-        unique_together = (('customer_custom', 'account_account'), ('customer_custom', 'belong_branch', 'acc_type'),)
+        unique_together = (('customer', 'account_account'), ('customer', 'belong_branch', 'acc_type'),)
 
 
 class Loan(models.Model):
@@ -129,13 +129,13 @@ class Loan(models.Model):
 # note primary
 class CustomerHasLoan(models.Model):
     # customer_custom = models.OneToOneField(Customer, models.DO_NOTHING, primary_key=True)
-    customer_custom = models.ForeignKey(Customer, models.DO_NOTHING)    # modified by cya
+    customer = models.ForeignKey(Customer, models.DO_NOTHING)    # modified by cya
     loan_loan = models.ForeignKey('Loan', models.CASCADE)
 
     class Meta:
         managed = False
         db_table = 'customer_has_loan'
-        unique_together = (('customer_custom', 'loan_loan'),)
+        unique_together = (('customer', 'loan_loan'),)
 
 # note primary
 class PayForLoan(models.Model):
