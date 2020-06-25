@@ -1,3 +1,4 @@
+import django
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -89,7 +90,7 @@ def staff_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST', 'DELETE'])
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def customer_list(request):
     """
     List all customers, or create a new customer.
@@ -100,7 +101,7 @@ def customer_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        print('-------------------------------------------------received POST method-------------------------------------------------')
+        print('---------------------------------------------received POST method---------------------------------------------')
         serializer = CustomerSerializer(data=request.data)
         # request.data 是 dict
         if len(Customer.objects.filter(custom_id=request.data['custom_id'])) != 0:
@@ -109,25 +110,57 @@ def customer_list(request):
             return Response({'errmsg': 'The custom_id already exists'})
         if serializer.is_valid():
             serializer.save()
+            print('created')
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        print('-------------------------------------------------over DELETE method-------------------------------------------------')
+        print('---------------------------------------------over DELETE method---------------------------------------------')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+    elif request.method == 'PUT':
+        # 未修改身份证号：valid一下然后直接save
+        # 修改了身份证号：若与其他人的重复则会报错：django.db.utils.IntegrityError
+        # .clean_fields() 不会检测身份证号重复
+        # .validate_unique() 可以检测unique约束，当与除自己外其他的元组有重复时会报错
+        print('---------------------------------------------received PUT method---------------------------------------------')
+        print('request.data = ' + str(request.data))
+        
+        resp = {}
+        customer = Customer(**request.data) # 新建一个对象
+        try:
+            customer.clean_fields()
+        except django.core.exceptions.ValidationError as e:
+            print('clean_fields error:')
+            print(e)
+            resp = Response(e, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            try:
+                customer.save()
+            except django.db.utils.IntegrityError as e:
+            # except django.core.exceptions.ValidationError as e:
+                print('validate_unique error:')
+                print(e)
+                err = {'errmsg': 'err'}
+                resp = Response(err, status=status.HTTP_400_BAD_REQUEST)
+            else:   # no error
+                resp = Response({'msg': 'Update successfully'}, status=status.HTTP_200_OK)
+
+        print('---------------------------------------------over PUT method---------------------------------------------')
+        return resp
+    
     elif request.method == 'DELETE':
-        print('-------------------------------------------------received DELETE method-------------------------------------------------')
+        print('---------------------------------------------received DELETE method---------------------------------------------')
         print('received data: ')
         print(request.data)
         print('type of received data: ' + str(type(request.data)))
         print('request.data.custom_id = ' + request.data['custom_id'])
-        account_num = len(CustomerHasAccount.objects.filter(customer_custom=request.data['custom_id']))
-        loan_num = len(CustomerHasLoan.objects.filter(customer_custom=request.data['custom_id']))
+        account_num = len(CustomerHasAccount.objects.filter(customer=request.data['id']))
+        loan_num = len(CustomerHasLoan.objects.filter(customer=request.data['id']))
         if account_num > 0 or loan_num > 0:
             print('Cannot delete this customer because he has accounts or loans')
             return Response({'errmsg': 'Cannot delete this customer because he has accounts or loans'})
-        cusDelete = Customer.objects.get(pk=request.data['custom_id'])
+        cusDelete = Customer.objects.get(pk=request.data['id'])
         print('cusDelete: ' + str(cusDelete))
         cusDelete.delete()
-        print('-------------------------------------------------over DELETE method-------------------------------------------------')
+        print('---------------------------------------------over DELETE method---------------------------------------------')
         return Response({'msg': 'Delete successful'})
 
 

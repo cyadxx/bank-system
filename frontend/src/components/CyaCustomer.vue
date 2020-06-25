@@ -238,11 +238,25 @@ export default {
     },
     handleEdit: function (index, row) {
       console.log('edit: ', index, row)
-      this.editCusForm = this.tableData[index]
+      this.editCusForm = Object.assign({}, this.tableData[index]) // 深度复制
       this.dialogFormVisible = true
     },
     commitEdit: function () { // TODO
+      let _this = this
       console.log('commit edit')
+      axios.put('http://localhost:8000/api/customer/', this.editCusForm, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(function (response) {
+        console.log('response after edit customer info')
+        console.log(response)
+        _this.updateCusTable(_this)
+      }).catch(function (error) {
+        console.log('edit customer info error:')
+        console.log(error)
+        _this.$alert(error, '修改出错')
+      })
       this.dialogFormVisible = false
     },
     handleDelete: function (index, row) {
