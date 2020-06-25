@@ -1,3 +1,5 @@
+languages/migrations/*
+
 # Django #
 *.log
 *.pot
