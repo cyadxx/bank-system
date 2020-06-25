@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from bank.models import Branch, Department, Staff, Customer, Account, CheckingAccount, SavingsAccount, CustomerHasAccount, Loan, CustomerHasLoan, PayForLoan
-from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, LoanSerializer
+from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, LoanSerializer, PayForLoanSerializer
 from django.http import Http404
 from rest_framework.views import APIView
 
@@ -72,15 +72,30 @@ def department_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'DELETE'])
 def staff_list(request):
     """
     List all staffs, or create a new staff.
     """
     if request.method == 'GET':
-        staffs = Staff.objects.all()
-        serializer = StaffSerializer(staffs, many=True)
-        return Response(serializer.data)
+        print('--------------------------------------staff list received GET method-------------------------------------')
+        print('request.query_params:')
+        print(request.query_params.dict())
+        print(len(request.query_params.dict()))
+
+        resp = Response()
+        if len(request.query_params.dict()) == 0:
+            staffs = Staff.objects.all()
+            serializer = StaffSerializer(staffs, many=True)
+            resp = Response(serializer.data)
+        else:   # 有参数，参数是 {'branch_name': 'xx支行'}，返回对应支行内的员工
+            br_name = request.query_params.dict()['branch_name']    # string
+            # staff 与 department 做连接操作，取出属于该支行的员工
+            br_staffs = Staff.objects.filter(department_department__branch_branch_name=br_name)
+            serializer = StaffSerializer(br_staffs, many=True)
+            resp = Response(serializer.data)
+        print('--------------------------------------staff list over GET method-------------------------------------')
+        return resp
 
     elif request.method == 'POST':
         serializer = StaffSerializer(data=request.data)
@@ -88,6 +103,9 @@ def staff_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        pass
 
 
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
@@ -101,7 +119,7 @@ def customer_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        print('---------------------------------------------received POST method---------------------------------------------')
+        print('-----------------------------------customer received POST method-----------------------------------')
         serializer = CustomerSerializer(data=request.data)
         # request.data 是 dict
         if len(Customer.objects.filter(custom_id=request.data['custom_id'])) != 0:
@@ -112,7 +130,7 @@ def customer_list(request):
             serializer.save()
             print('created')
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        print('---------------------------------------------over DELETE method---------------------------------------------')
+        print('-----------------------------------customer over POST method-----------------------------------')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'PUT':
@@ -120,7 +138,7 @@ def customer_list(request):
         # 修改了身份证号：若与其他人的重复则会报错：django.db.utils.IntegrityError
         # .clean_fields() 不会检测身份证号重复
         # .validate_unique() 可以检测unique约束，当与除自己外其他的元组有重复时会报错
-        print('---------------------------------------------received PUT method---------------------------------------------')
+        print('-----------------------------------customer received PUT method-----------------------------------')
         print('request.data = ' + str(request.data))
         
         resp = {}
@@ -143,11 +161,11 @@ def customer_list(request):
             else:   # no error
                 resp = Response({'msg': 'Update successfully'}, status=status.HTTP_200_OK)
 
-        print('---------------------------------------------over PUT method---------------------------------------------')
+        print('-----------------------------------customer over PUT method-----------------------------------')
         return resp
     
     elif request.method == 'DELETE':
-        print('---------------------------------------------received DELETE method---------------------------------------------')
+        print('-----------------------------------customer received DELETE method-----------------------------------')
         print('received data: ')
         print(request.data)
         print('type of received data: ' + str(type(request.data)))
@@ -160,7 +178,7 @@ def customer_list(request):
         cusDelete = Customer.objects.get(pk=request.data['id'])
         print('cusDelete: ' + str(cusDelete))
         cusDelete.delete()
-        print('---------------------------------------------over DELETE method---------------------------------------------')
+        print('-----------------------------------customer over DELETE method-----------------------------------')
         return Response({'msg': 'Delete successful'})
 
 
@@ -188,14 +206,45 @@ def loan_list(request):
     List all loans, or create a new loan.
     """
     if request.method == 'GET':
-        loans = Loan.objects.all()
-        serializer = LoanSerializer(loans, many=True)
-        return Response(serializer.data)
+        print('--------------------------------------loan received GET method--------------------------------------')
+        if len(request.query_params.dict()) == 0:
+            loans = Loan.objects.all()
+            serializer = LoanSerializer(loans, many=True)
+            resp = Response(serializer.data)
+        else:   # 有参数，参数是 {'loan_id': this.row.loan_id}，返回该贷款的所有者
+            loan_id = request.query_params.dict()['loan_id']    # string
+            # manytomanyfield
+            loan = Loan.objects.get(loan_id=loan_id)
+            cus = loan.loan_owner.all()
+            serializer = CustomerSerializer(cus, many=True)
+            resp = Response(serializer.data)
+        print('--------------------------------------loan over POST method--------------------------------------')
+        return resp
 
     elif request.method == 'POST':
+        print('--------------------------------------loan received POST method--------------------------------------')
+        print('request.data:')
+        print(request.data)
+        print('type: ' + str(type(request.data)))
+
+        resp = 0
+        customer_id_list = request.data['customer_id_list']
+        request.data.pop('customer_id_list')
         serializer = LoanSerializer(data=request.data)
+        if len(Loan.objects.filter(loan_id=request.data['loan_id'])) != 0:
+            # 该贷款号已存在
+            resp = Response({'errmsg': 'The loan_id already exists'}, status=status.HTTP_403_FORBIDDEN)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            new_loan = Loan.objects.get(loan_id=request.data['loan_id'])
+            for cus_id in customer_id_list:
+                print('cus_id = ' + str(cus_id))
+                cus = Customer.objects.get(id=cus_id)
+                chl = CustomerHasLoan(customer=cus, loan_loan=new_loan)
+                chl.save()
+            resp = Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        print('--------------------------------------loan over POST method--------------------------------------')
+        return resp
 

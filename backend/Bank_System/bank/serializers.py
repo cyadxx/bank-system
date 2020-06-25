@@ -36,3 +36,9 @@ class LoanSerializer(serializers.ModelSerializer):
         model = Loan
         fields = ['loan_id', 'loan_money', 'loan_state', 'staff_staff', 'branch_branch_name']
 
+
+class PayForLoanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PayForLoan
+        fields = ['pay_id', 'pay_date', 'pay_account', 'loan_loan']
+

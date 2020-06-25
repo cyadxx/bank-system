@@ -87,7 +87,7 @@
           <el-input v-model="addCusForm.contact_custom_relation" placeholder="二者关系"></el-input>
         </el-form-item>
         <el-form-item class="button-right">
-          <el-button type="primary" @click="addCusSubmit">添加</el-button>
+          <el-button type="primary" size="medium" @click="addCusSubmit">添加</el-button>
         </el-form-item>
       </el-form>
     </el-row>
