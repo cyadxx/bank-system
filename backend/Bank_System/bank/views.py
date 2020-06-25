@@ -139,7 +139,7 @@ def customer_list(request):
                 print('validate_unique error:')
                 print(e)
                 err = {'errmsg': 'err'}
-                resp = Response(err, status=status.HTTP_400_BAD_REQUEST)
+                resp = Response(err, status=status.HTTP_403_FORBIDDEN)
             else:   # no error
                 resp = Response({'msg': 'Update successfully'}, status=status.HTTP_200_OK)
 

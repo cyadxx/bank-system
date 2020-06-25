@@ -61,7 +61,7 @@
       <h3>添加新客户</h3>
     </el-row>
     <el-row>
-      <el-form :inline="true" :model="addCusForm" :rules="addCusRules" label-width="100px" class="demo-form-inline">
+      <el-form :inline="true" :model="addCusForm" :rules="addCusRules" ref="addCusForm" label-width="100px" class="demo-form-inline">
         <el-form-item label="身份证号" prop="custom_id">
           <el-input v-model="addCusForm.custom_id" placeholder="客户身份证号"></el-input>
         </el-form-item>
@@ -148,8 +148,9 @@ export default {
       },
       addCusRules: {
         custom_id: [
-          { required: true, message: '请输入客户身份证号', trigger: 'blur' },
-          { min: 18, max: 18, message: '长度为 18 个字符', trigger: 'blur' }
+          { required: true, message: '请输入客户身份证号', trigger: 'change' },
+          { min: 18, max: 18, message: '长度为 18 个字符', trigger: 'change' },
+          { validator: this.validateCustomId, trigger: 'change' }
         ],
         custom_name: [
           { required: true, message: '请输入客户姓名', trigger: 'change' },
@@ -157,6 +158,7 @@ export default {
         ],
         custom_phone: [
           { required: true, message: '请输入客户电话', trigger: 'change' },
+          { pattern: '^[0-9]*$', message: '手机号只允许出现数字', trigger: 'change' },
           { min: 7, max: 11, message: '长度在 7 到 11 个字符', trigger: 'change' }
         ],
         custom_address: [
@@ -169,14 +171,15 @@ export default {
         ],
         contact_phone: [
           { required: true, message: '请输入联系人电话', trigger: 'change' },
+          { pattern: '^[0-9]*$', message: '手机号只允许出现数字', trigger: 'change' },
           { min: 7, max: 11, message: '长度在 7 到 11 个字符', trigger: 'change' }
         ],
         contact_email: [
-          { required: true, message: '请输入联系人邮箱', trigger: 'blur' },
+          { required: true, message: '请输入联系人邮箱', trigger: 'change' },
           { min: 1, max: 30, message: '长度在 1 到 30 个字符', trigger: 'change' }
         ],
         contact_custom_relation: [
-          { required: true, message: '请输入二者关系', trigger: 'blur' },
+          { required: true, message: '请输入二者关系', trigger: 'change' },
           { min: 1, max: 10, message: '长度在 1 到 10 个字符', trigger: 'change' }
         ]
       },
@@ -222,18 +225,30 @@ export default {
     },
     addCusSubmit: function () {
       let _this = this
-      console.log('submit new customer')
-      axios.request({
-        url: 'http://localhost:8000/api/customer/',
-        method: 'POST',
-        data: this.addCusForm
-      }).then(function (response) { // 添加新的客户后更新表格
-        console.log('post then:')
-        if (response.data.errmsg !== undefined) {
-          console.log(response.data.errmsg)
-          _this.$alert(response.data.errmsg, '添加出错')
+      this.$refs.addCusForm.validate((valid) => {
+        if (valid) { // 只有信息检查正确的时候才可以提交
+          console.log('addCusSubmit valid')
+          console.log('submit new customer')
+          axios.request({
+            url: 'http://localhost:8000/api/customer/',
+            method: 'POST',
+            data: this.addCusForm
+          }).then(function (response) { // 添加新的客户后更新表格
+            console.log('post then:')
+            if (response.data.errmsg !== undefined) {
+              console.log(response.data.errmsg)
+              _this.$alert(response.data.errmsg, '添加出错')
+            }
+            _this.updateCusTable(_this)
+          }).catch(function (error) {
+            console.log('catch error when add customer')
+            _this.$alert(error, '添加出错')
+          })
+        } else {
+          console.log('addCusSubmit error')
+          this.$alert('请按照提示输入正确的信息', '添加新客户出错')
+          return false
         }
-        _this.updateCusTable(_this)
       })
     },
     handleEdit: function (index, row) {
@@ -279,6 +294,20 @@ export default {
       }).catch(function (error) {
         console.log('error: ' + error)
       })
+    },
+    validateCustomId: function (rule, value, callback) {
+      // 检查客户身份证号，只允许出现数字，最后一位还允许出现 X
+      let valid = true
+      for (let i = 0; i < value.length; i++) {
+        if ((isNaN(value[i]) === true) && (value[i] !== 'X')) {
+          valid = false
+        }
+      }
+      if (!valid) {
+        callback(new Error('不允许输入除数字和 X 以外的字符'))
+      } else {
+        callback()
+      }
     }
   }
 }
