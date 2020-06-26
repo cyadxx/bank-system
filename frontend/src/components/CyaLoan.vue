@@ -95,7 +95,7 @@
       </el-form>
     </el-row>
 
-    <!--点击“查看客户贷款”按钮的弹出框-->
+    <!--点击“查看贷款客户”按钮的弹出框-->
     <el-dialog title="该贷款所属的客户信息" :visible.sync="customerDialogFormVisible" width="80%">
       <el-table
         :data="cusTableData"
