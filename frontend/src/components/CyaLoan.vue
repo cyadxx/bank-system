@@ -318,6 +318,10 @@ export default {
         console.log(response.data)
         console.log('type:', typeof (response.data))
         _this.tableData = response.data
+        if (_this.tableData[_this.openLoanIndex].loan_state === '2') {
+          console.log('payButtonDisable = true')
+          _this.payButtonDisable = true
+        }
       }).catch(function (error) {
         console.log('get loan info error:')
         console.log(error.response)
@@ -493,6 +497,7 @@ export default {
             console.log(response.data)
             _this.$message('贷款发放成功')
             _this.getPayInfo(_this) // payTableData
+            _this.getLoanInfo(_this) // 更新 loan table（可能该贷款已发放完，更新贷款状态）
           }).catch(function (error) {
             console.log('pay for loan error:')
             console.log(error.response)

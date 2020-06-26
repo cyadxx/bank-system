@@ -285,6 +285,16 @@ def payforloan_list(request):
         resp = 0
         serializer = PayForLoanSerializer(data=request.data)
         if serializer.is_valid():
+            paid_total = 0
+            payments = PayForLoan.objects.filter(loan_loan=request.data['loan_loan'])
+            for item in payments:
+                paid_total += item.pay_account
+            paid_total += request.data['pay_account']
+            if paid_total == payments[0].loan_loan.loan_money:
+                # 该贷款支付完了
+                print(str(request.data['loan_loan']) + 'paid over')
+                payments[0].loan_loan.loan_state = '2'
+                payments[0].loan_loan.save()
             serializer.save()
             resp = Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
