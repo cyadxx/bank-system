@@ -185,9 +185,19 @@ def account_list(request):
     List all accounts, or create a new account.
     """
     if request.method == 'GET':
-        accounts = Account.objects.all()
-        serializer = AccountSerializer(accounts, many=True)
-        return Response(serializer.data)
+        print('--------------------------------------account received GET method--------------------------------------')
+        if len(request.query_params.dict()) == 0:
+            accounts = Account.objects.all()
+            serializer = AccountSerializer(accounts, many=True)
+            resp = Response(serializer.data)
+        else:   # 有参数，参数是 {'account_id': row.account_id}，返回该账户的所有者
+            account_id =request.query_params.dict()['account_id']
+            acc = Account.objects.get(account_id=account_id)
+            cus = acc.account_owner.all()
+            serializer = CustomerSerializer(cus, many=True)
+            resp = Response(serializer.data)
+        print('--------------------------------------account over GET method--------------------------------------')
+        return resp
 
     elif request.method == 'POST':
         print('-----------------------------------account received POST method-----------------------------------')
@@ -257,6 +267,44 @@ def account_list(request):
             resp = Response(acc_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         print('-----------------------------------account over POST method-----------------------------------')
+        return resp
+
+
+@api_view(['GET'])
+def saveaccount_list(request):
+    """
+    List all save accounts.
+    """
+    if request.method == 'GET':
+        print('--------------------------------------saveaccount received GET method--------------------------------------')
+        if len(request.query_params.dict()) == 0:
+            print('error: request should have params')
+            resp = Response({'errmsg': 'request to saveaccount should have params'}, status=status.HTTP_400_BAD_REQUEST)
+        else:   # 有参数，参数是 {'account_id': row.account_id}，返回该账户
+            account_id =request.query_params.dict()['account_id']
+            saveacc = SavingsAccount.objects.filter(account_account=account_id)
+            serializer = SavingsAccountSerializer(saveacc, many=True)
+            resp = Response(serializer.data)
+        print('--------------------------------------saveaccount over GET method--------------------------------------')
+        return resp
+
+
+@api_view(['GET'])
+def checkaccount_list(request):
+    """
+    List all check accounts.
+    """
+    if request.method == 'GET':
+        print('--------------------------------------checkaccount received GET method--------------------------------------')
+        if len(request.query_params.dict()) == 0:
+            print('error: request should have params')
+            resp = Response({'errmsg': 'request to checkaccount should have params'}, status=status.HTTP_400_BAD_REQUEST)
+        else:   # 有参数，参数是 {'account_id': row.account_id}，返回该账户
+            account_id =request.query_params.dict()['account_id']
+            checkacc = CheckingAccount.objects.filter(account_account=account_id)
+            serializer = CheckingAccountSerializer(checkacc, many=True)
+            resp = Response(serializer.data)
+        print('--------------------------------------checkaccount over GET method--------------------------------------')
         return resp
 
 

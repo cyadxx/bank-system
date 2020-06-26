@@ -133,6 +133,85 @@
         </el-form-item>
       </el-form>
     </el-row>
+
+    <!--点击“详情”按钮的弹出框-->
+    <el-dialog title="该账户的详细信息" :visible.sync="accDetailDialogFormVisible" width="80%">
+      <h3 v-if="saveaccountDisplay">本账户是储蓄账户</h3>
+      <el-table
+        v-if="saveaccountDisplay"
+        :data="saveAccDetailTableData"
+        style="width: 100%">
+        <el-table-column
+          prop="interset_rate"
+          label="利率"
+          width="200">
+        </el-table-column>
+        <el-table-column
+          prop="currency_type"
+          label="货币类型">
+        </el-table-column>
+      </el-table>
+
+      <h3 v-if="!saveaccountDisplay">本账户是支票账户</h3>
+      <el-table
+        v-if="!saveaccountDisplay"
+        :data="checkAccDetailTableData"
+        style="width: 100%">
+        <el-table-column
+          prop="credit_line"
+          label="透支额">
+        </el-table-column>
+      </el-table>
+
+      <h3>账户的所有者</h3>
+      <el-table
+        :data="cusTableData"
+        style="width: 100%">
+        <el-table-column
+          prop="custom_id"
+          label="客户身份证号"
+          width="200">
+        </el-table-column>
+        <el-table-column
+          prop="custom_name"
+          label="姓名"
+          width="100">
+        </el-table-column>
+        <el-table-column
+          prop="custom_phone"
+          label="手机号"
+          width="130">
+        </el-table-column>
+        <el-table-column
+          prop="custom_address"
+          label="家庭住址"
+          width="160">
+        </el-table-column>
+        <el-table-column
+          prop="contact_name"
+          label="联系人姓名"
+          width="100">
+        </el-table-column>
+        <el-table-column
+          prop="contact_phone"
+          label="联系人电话"
+          width="140">
+        </el-table-column>
+        <el-table-column
+          prop="contact_email"
+          label="联系人邮箱"
+          width="170">
+        </el-table-column>
+        <el-table-column
+          prop="contact_custom_relation"
+          label="二者关系">
+        </el-table-column>
+      </el-table>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="accDetailDialogFormVisible = false">关 闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -148,6 +227,12 @@ export default {
       brOptions: [],
       staffOptions: [],
       customerOptions: [],
+      accDetailDialogFormVisible: false,
+      cusTableData: [],
+      saveAccDetailTableData: [],
+      checkAccDetailTableData: [],
+      openAccIndex: 0,
+      saveaccountDisplay: true,
       typeOptions: [{
         type: 'saveaccount',
         type_name: '储蓄账户'
@@ -352,8 +437,60 @@ export default {
       }
     },
     handleViewDetail: function (index, row) {
+      let _this = this
       console.log('view account detail:')
       console.log('index = ', index, '    row = ', row)
+      this.openAccIndex = index
+      this.saveaccountDisplay = (row.account_type === 'saveaccount')
+      this.accDetailDialogFormVisible = true
+      axios.get('http://localhost:8000/api/account/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'account_id': row.account_id
+        }
+      }).then(function (response) {
+        console.log('get customer table:')
+        console.log(response.data)
+        _this.cusTableData = response.data
+      }).catch(function (error) {
+        console.log('get customers info error:')
+        console.log(error.response)
+      })
+      if (this.saveaccountDisplay === true) { // 储蓄账户
+        axios.get('http://localhost:8000/api/saveacc/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'account_id': row.account_id
+          }
+        }).then(function (response) {
+          console.log('get save account table:')
+          console.log(response.data)
+          _this.saveAccDetailTableData = response.data
+        }).catch(function (error) {
+          console.log('get save account info error:')
+          console.log(error.response)
+        })
+      } else { // 支票账户
+        axios.get('http://localhost:8000/api/checkacc/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'account_id': row.account_id
+          }
+        }).then(function (response) {
+          console.log('get check account table:')
+          console.log(response.data)
+          _this.checkAccDetailTableData = response.data
+        }).catch(function (error) {
+          console.log('get check account info error:')
+          console.log(error.response)
+        })
+      }
     },
     handleEdit: function (index, row) {
       console.log('edit account info:')
