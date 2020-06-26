@@ -72,7 +72,7 @@ def department_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST', 'DELETE'])
+@api_view(['GET', 'POST'])
 def staff_list(request):
     """
     List all staffs, or create a new staff.
@@ -103,9 +103,6 @@ def staff_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        pass
 
 
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
@@ -200,7 +197,7 @@ def account_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'DELETE'])
 def loan_list(request):
     """
     List all loans, or create a new loan.
@@ -247,6 +244,19 @@ def loan_list(request):
             resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         print('--------------------------------------loan over POST method--------------------------------------')
         return resp
+
+    elif request.method == 'DELETE':
+        print('-----------------------------------loan received DELETE method-----------------------------------')
+        print('received data: ')
+        print(request.data)
+        print('type of received data: ' + str(type(request.data)))
+        print('request.data.loan_id = ' + request.data['loan_id'])
+        # 能发送 delete 请求的一定是 未发放 或者 已发放完 的状态，不需要检查，直接删除即可
+        loan_delete = Loan.objects.get(loan_id=request.data['loan_id'])
+        print('loan_delete: ' + str(loan_delete))
+        loan_delete.delete()
+        print('-----------------------------------loan over DELETE method-----------------------------------')
+        return Response({'msg': 'Delete successful'})
 
 
 @api_view(['GET', 'POST'])

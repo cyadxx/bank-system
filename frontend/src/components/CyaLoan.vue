@@ -506,7 +506,21 @@ export default {
     },
     // 删除贷款
     handleDelete: function (index, row) {
+      let _this = this
       console.log('delete: ', index, row)
+      // (this.tableData[index] === row) = true
+      axios.delete('http://localhost:8000/api/loan/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: row
+      }).then(function (response) {
+        console.log('received info for delete loan method: ', response)
+        _this.getLoanInfo(_this) // 更新 loan table
+      }).catch(function (error) {
+        console.log('delete loan error: ' + error)
+        _this.$alert('删除贷款信息出错', '删除出错')
+      })
     }
   }
 }
