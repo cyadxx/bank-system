@@ -31,6 +31,18 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = ['account_id', 'account_balance', 'account_opendate', 'account_type', 'staff_staff', 'branch_branch_name']
 
 
+class CheckingAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CheckingAccount
+        fields = ['credit_line', 'account_account']
+
+
+class SavingsAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavingsAccount
+        fields = ['interset_rate', 'currency_type', 'account_account']
+
+
 class LoanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan

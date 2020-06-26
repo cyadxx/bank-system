@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from bank.models import Branch, Department, Staff, Customer, Account, CheckingAccount, SavingsAccount, CustomerHasAccount, Loan, CustomerHasLoan, PayForLoan
-from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, LoanSerializer, PayForLoanSerializer
+from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, CheckingAccountSerializer, SavingsAccountSerializer, LoanSerializer, PayForLoanSerializer
 from django.http import Http404
 from rest_framework.views import APIView
 
@@ -179,7 +179,7 @@ def customer_list(request):
         return Response({'msg': 'Delete successful'})
 
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def account_list(request):
     """
     List all accounts, or create a new account.
@@ -190,11 +190,74 @@ def account_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        serializer = AccountSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        print('-----------------------------------account received POST method-----------------------------------')
+        print('request data = ')
+        print(request.data)
+
+        if len(Account.objects.filter(account_id=request.data['account_id'])) != 0:
+            # 该账户号已存在
+            resp = Response({'errmsg': 'The account_id already exists'}, status=status.HTTP_403_FORBIDDEN)
+            return resp
+
+        # 获取开户客户
+        customer_id_list = request.data['customer_id_list']
+        request.data.pop('customer_id_list')
+        # 获取账户类型，并将 request.data 中不需要的 key 删除
+        if request.data['account_type'] == 'saveaccount':
+            save_account = { 'interset_rate': request.data['interset_rate'], 'currency_type': request.data['currency_type'], 'account_account': request.data['account_id'] }
+        elif request.data['account_type'] == 'checkaccount':
+            check_account = { 'credit_line': request.data['credit_line'], 'account_account': request.data['account_id'] }
+        else:
+            print('unknown account type!')
+            return Response({'errmsg': 'unknown account type'}, status=status.HTTP_403_FORBIDDEN)
+        request.data.pop('interset_rate')
+        request.data.pop('currency_type')
+        request.data.pop('credit_line')
+
+        print('after pop:')
+        print(request.data)
+        acc_serializer = AccountSerializer(data=request.data)
+        if acc_serializer.is_valid():
+            acc_serializer.save()
+            # 处理从表
+            acc = Account.objects.get(account_id=request.data['account_id'])
+            print('account after save: ' + str(acc))
+            if request.data['account_type'] == 'saveaccount':
+                print('save_account = ' + str(save_account))
+                sav_acc_serializer = SavingsAccountSerializer(data=save_account)
+                if sav_acc_serializer.is_valid():
+                    print('add new save account')
+                    sav_acc_serializer.save()
+                else:
+                    print('failed to add new save account')
+                    resp = Response(sav_acc_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    return resp
+
+            elif request.data['account_type'] == 'checkaccount':
+                print('check_account = ' + str(check_account))
+                chk_acc_serializer = CheckingAccountSerializer(data=check_account)
+                if chk_acc_serializer.is_valid():
+                    print('add new check account')
+                    chk_acc_serializer.save()
+                else:
+                    print('failed to add new check account')
+                    resp = Response(chk_acc_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    return resp
+            
+            # 处理 customer_has_account 表
+            belong_branch = Branch.objects.get(branch_name=request.data['branch_branch_name'])
+            for cus_id in customer_id_list:
+                print('cus_id = ' + str(cus_id))
+                cus = Customer.objects.get(id=cus_id)
+                CHA = CustomerHasAccount(customer=cus, account_account=acc, last_visit=request.data['account_opendate'], belong_branch=belong_branch, acc_type=request.data['account_type'])
+                CHA.save()
+
+            resp = Response(acc_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            resp = Response(acc_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        print('-----------------------------------account over POST method-----------------------------------')
+        return resp
 
 
 @api_view(['GET', 'POST', 'DELETE'])
@@ -231,14 +294,15 @@ def loan_list(request):
         if len(Loan.objects.filter(loan_id=request.data['loan_id'])) != 0:
             # 该贷款号已存在
             resp = Response({'errmsg': 'The loan_id already exists'}, status=status.HTTP_403_FORBIDDEN)
+            return resp
         if serializer.is_valid():
             serializer.save()
             new_loan = Loan.objects.get(loan_id=request.data['loan_id'])
             for cus_id in customer_id_list:
                 print('cus_id = ' + str(cus_id))
                 cus = Customer.objects.get(id=cus_id)
-                chl = CustomerHasLoan(customer=cus, loan_loan=new_loan)
-                chl.save()
+                CHL = CustomerHasLoan(customer=cus, loan_loan=new_loan)
+                CHL.save()
             resp = Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -301,3 +365,4 @@ def payforloan_list(request):
             resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         print('--------------------------------------payforloan over POST method--------------------------------------')
         return resp
+
