@@ -248,3 +248,36 @@ def loan_list(request):
         print('--------------------------------------loan over POST method--------------------------------------')
         return resp
 
+
+@api_view(['GET', 'POST'])
+def payforloan_list(request):
+    """
+    List all loans, or create a new loan.
+    """
+    if request.method == 'GET':
+        print('--------------------------------------payforloan received GET method--------------------------------------')
+        if len(request.query_params.dict()) == 0:   # 没有参数
+            resp = Response({'errmsg': 'payforloan_list do not handle GET without params'})
+        else:   # 有参数，参数是 {'loan_id': this.row.loan_id}，返回该贷款的支付情况
+            loan_id = request.query_params.dict()['loan_id']    # string
+            payment = PayForLoan.objects.filter(loan_loan_id=loan_id)
+            serializer = PayForLoanSerializer(payment, many=True)
+            resp = Response(serializer.data)
+        print('--------------------------------------payforloan over GET method--------------------------------------')
+        return resp
+
+    elif request.method == 'POST':
+        print('--------------------------------------payforloan received POST method--------------------------------------')
+        print('request.data:')
+        print(request.data)
+        print('type: ' + str(type(request.data)))
+
+        resp = 0
+        serializer = PayForLoanSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            resp = Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        print('--------------------------------------payforloan over POST method--------------------------------------')
+        return resp

@@ -37,11 +37,11 @@
             <el-button
               size="mini"
               type="primary" plain
-              @click="handleMakeLoan(scope.$index, scope.row)">发放情况</el-button>
+              @click="handleViewPayment(scope.$index, scope.row)">发放情况</el-button>
             <el-button
               size="mini"
               type="danger" plain
-              :disabled="(scope.row.loan_state == '1') ? false : true"
+              :disabled="(scope.row.loan_state == '1') ? true : false"
               @click="handleDelete(scope.$index, scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -147,7 +147,7 @@
     </el-dialog>
 
     <!--点击“发放情况”按钮的弹出框-->
-    <el-dialog title="该贷款所属的发放情况" :visible.sync="payDialogFormVisible" width="50%">
+    <el-dialog title="该贷款的发放情况" :visible.sync="payDialogFormVisible" width="50%">
       <el-row>
         <el-table
           :data="payTableData"
@@ -155,17 +155,17 @@
           <el-table-column
             prop="loan_loan"
             label="贷款号"
-            width="200">
+            width="150">
           </el-table-column>
           <el-table-column
             prop="pay_id"
             label="付款号"
-            width="100">
+            width="150">
           </el-table-column>
           <el-table-column
             prop="pay_date"
             label="付款发放时间"
-            width="130">
+            width="300">
           </el-table-column>
           <el-table-column
             prop="pay_account"
@@ -183,17 +183,16 @@
             <el-input type="number" v-model.number="addPayForm.pay_account" placeholder="付款金额"></el-input>
           </el-form-item>
           <el-form-item label="付款时间" prop="pay_date">
-            <el-select v-model="addPayForm.pay_date" placeholder="请选择付款时间" @change="branchChanged">
-              <el-option
-                v-for="item in brOptions"
-                :key="item.branch_name"
-                :label="item.branch_name"
-                :value="item.branch_name">
-              </el-option>
-            </el-select>
+            <el-date-picker
+              v-model="addPayForm.pay_date"
+              type="datetime"
+              value-format="yyyy-MM-dd HH:mm:ss"
+              :picker-options="pickerOptions"
+              placeholder="请选择付款时间">
+            </el-date-picker>
           </el-form-item>
           <el-form-item class="button-right">
-            <el-button type="primary" size="medium" @click="payForLoan">发放</el-button>
+            <el-button type="primary" size="medium" @click="payForLoan" :disabled="payButtonDisable">发放</el-button>
           </el-form-item>
         </el-form>
       </el-row>
@@ -211,12 +210,19 @@ export default {
       tableData: [],
       cusTableData: [],
       payTableData: [],
+      openLoanIndex: -1, // 当前被打开查看付款记录的贷款在 tableData 中的 index
+      payButtonDisable: false,
       customerDialogFormVisible: false,
       payDialogFormVisible: false,
       staffDis: true,
       brOptions: [],
       staffOptions: [],
       customerOptions: [],
+      pickerOptions: {
+        disabledDate: function (time) {
+          return time.getTime() > Date.now()
+        }
+      },
       addLoanForm: {
         loan_id: '',
         loan_money: 1000,
@@ -246,22 +252,24 @@ export default {
         ]
       },
       addPayForm: {
-        loan_id: '',
+        loan_loan: '',
         pay_id: '',
         pay_date: '',
         pay_account: ''
       },
       addPayRules: {
         pay_id: [
-          { required: true, message: '请输入付款号', trigger: 'change' },
-          { min: 1, max: 4, message: '长度在 1 到 4 个字符', trigger: 'change' }
+          { required: true, message: '请输入付款号', trigger: 'blur' },
+          { min: 1, max: 4, message: '长度在 1 到 4 个字符', trigger: 'blur' },
+          { validator: this.validatePayId, trigger: 'change' }
         ],
         pay_account: [
-          { required: true, message: '请输入付款金额且不要输入除数字外的字符', trigger: 'change' },
-          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+          { required: true, message: '请输入付款金额且不要输入除数字外的字符', trigger: 'blur' },
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'blur' },
+          { validator: this.validatePayMoney, trigger: 'change' }
         ],
         pay_date: [
-          { required: true, message: '请选择付款时间', trigger: 'change' }
+          { required: true, message: '请选择付款时间', trigger: 'blur' }
         ]
       }
     }
@@ -288,7 +296,7 @@ export default {
         'Content-Type': 'application/json'
       }
     }).then(function (response) {
-      console.log('update branch selector:')
+      console.log('get all customer info:')
       console.log(response.data)
       _this.customerOptions = response.data
     }).catch(function (error) {
@@ -312,7 +320,25 @@ export default {
         _this.tableData = response.data
       }).catch(function (error) {
         console.log('get loan info error:')
-        console.log(error)
+        console.log(error.response)
+      })
+    },
+    getPayInfo: function (_this) {
+      console.log('get pay info:')
+      axios.get('http://localhost:8000/api/pay/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'loan_id': this.tableData[this.openLoanIndex].loan_id
+        }
+      }).then(function (response) {
+        console.log('get pay info:')
+        console.log(response.data)
+        _this.payTableData = response.data
+      }).catch(function (error) {
+        console.log('get pay info error:')
+        console.log(error.response)
       })
     },
     // 提交新的贷款信息
@@ -374,6 +400,28 @@ export default {
       }
       callback()
     },
+    validatePayId: function (rule, value, callback) {
+      for (let i = 0; i < this.payTableData.length; i++) {
+        if (value === this.payTableData[i].pay_id) {
+          callback(new Error('付款号不能重复'))
+        }
+      }
+      callback()
+    },
+    // 检查填写的发放贷款表单中的发放金额是否已经超过贷款总金额
+    validatePayMoney: function (rule, value, callback) {
+      let total = this.tableData[this.openLoanIndex].loan_money
+      let paidTotal = 0
+      for (let i = 0; i < this.payTableData.length; i++) {
+        paidTotal += this.payTableData[i].pay_account
+      }
+      console.log('paidTotal = ' + paidTotal)
+      if (paidTotal + this.addPayForm.pay_account > total) {
+        callback(new Error('发放总金额已超过贷款金额'))
+      } else {
+        callback()
+      }
+    },
     // 每次修改所选支行时调用
     branchChanged: function () {
       console.log('br change')
@@ -392,7 +440,7 @@ export default {
           'loan_id': row.loan_id
         }
       }).then(function (response) {
-        console.log('update staff selector:')
+        console.log('get customer table:')
         console.log(response.data)
         _this.cusTableData = response.data
       }).catch(function (error) {
@@ -401,12 +449,60 @@ export default {
       })
     },
     // 发放贷款
-    handleMakeLoan: function (index, row) {
+    handleViewPayment: function (index, row) {
+      let _this = this
+      this.openLoanIndex = index
       console.log('make loan: ', index, row)
+      this.payButtonDisable = false
+      this.addPayForm = { loan_loan: row.loan_id, pay_id: '', pay_date: '', pay_account: '' }
+      console.log('payButtonDisable = ', this.payButtonDisable)
+      if (row.loan_state === '2') {
+        console.log('payButtonDisable = true')
+        this.payButtonDisable = true
+      }
       this.payDialogFormVisible = true
+      axios.get('http://localhost:8000/api/pay/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'loan_id': row.loan_id
+        }
+      }).then(function (response) {
+        console.log('get pay for loan info:')
+        console.log(response.data)
+        _this.payTableData = response.data
+      }).catch(function (error) {
+        console.log('get pay info error:')
+        console.log(error.response)
+      })
     },
     payForLoan: function () {
+      let _this = this
       console.log('发放贷款')
+      console.log('addPayForm:', this.addPayForm)
+      console.log('addPayForm.pay_date: ', this.addPayForm.pay_date, '   typeof pay_date: ', typeof (this.addPayForm.pay_date))
+      this.$refs.addPayForm.validate((valid) => {
+        if (valid) { // 只有 form 内容通过了检查才会提交
+          axios.post('http://localhost:8000/api/pay/', this.addPayForm, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }).then(function (response) {
+            console.log('pay for loan suuccessfully:')
+            console.log(response.data)
+            _this.$message('贷款发放成功')
+            _this.getPayInfo(_this) // payTableData
+          }).catch(function (error) {
+            console.log('pay for loan error:')
+            console.log(error.response)
+          })
+        } else {
+          console.log('pay for loan error')
+          this.$alert('请按照提示输入正确的信息', '付款信息出错')
+          return false
+        }
+      })
     },
     // 删除贷款
     handleDelete: function (index, row) {
