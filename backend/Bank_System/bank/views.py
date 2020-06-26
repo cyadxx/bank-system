@@ -268,6 +268,18 @@ def account_list(request):
         
         print('-----------------------------------account over POST method-----------------------------------')
         return resp
+    
+    elif request.method == 'DELETE':
+        print('-----------------------------------account received DELETE method-----------------------------------')
+        print('received data: ')
+        print(request.data)
+        print('request.data.account_id = ' + request.data['account_id'])
+        # 不需要检查，直接删除即可
+        acc_delete = Account.objects.get(account_id=request.data['account_id'])
+        print('acc_delete: ' + str(acc_delete))
+        acc_delete.delete()
+        print('-----------------------------------account over DELETE method-----------------------------------')
+        return Response({'msg': 'Delete account successful'})
 
 
 @api_view(['GET'])
@@ -368,7 +380,7 @@ def loan_list(request):
         print('loan_delete: ' + str(loan_delete))
         loan_delete.delete()
         print('-----------------------------------loan over DELETE method-----------------------------------')
-        return Response({'msg': 'Delete successful'})
+        return Response({'msg': 'Delete loan successful'})
 
 
 @api_view(['GET', 'POST'])

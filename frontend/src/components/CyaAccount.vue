@@ -46,7 +46,7 @@
             <el-button
               size="mini"
               type="danger" plain
-              @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+              @click="handleDeleteAcc(scope.$index, scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -496,9 +496,23 @@ export default {
       console.log('edit account info:')
       console.log('index = ', index, '    row = ', row)
     },
-    handleDelete: function (index, row) {
+    // 删除账户
+    handleDeleteAcc: function (index, row) {
+      let _this = this
       console.log('delete account:')
       console.log('index = ', index, '    row = ', row)
+      axios.delete('http://localhost:8000/api/account/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: row
+      }).then(function (response) {
+        console.log('received info for delete account method: ', response)
+        _this.getAccountInfo(_this) // 更新 account table
+      }).catch(function (error) {
+        console.log('delete account error: ' + error)
+        _this.$alert('删除账户出错', '删除出错')
+      })
     }
   },
   mounted: function () {
