@@ -237,7 +237,7 @@ export default {
           { min: 1, max: 10, message: '长度在 1 到 10 个字符', trigger: 'change' }
         ],
         loan_money: [
-          { required: true, message: '请输入贷款金额且不要输入除数字外的字符', trigger: 'change' },
+          { required: true, message: '请输入贷款金额', trigger: 'change' },
           { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
         ],
         staff_staff: [
