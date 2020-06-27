@@ -212,6 +212,60 @@
         <el-button @click="accDetailDialogFormVisible = false">关 闭</el-button>
       </div>
     </el-dialog>
+
+    <!--点击“修改”按钮的弹出框-->
+    <el-dialog title="修改账户信息" :visible.sync="accEditDialogFormVisible">
+      <el-form :inline="true" :model="editAccountForm" :rules="editAccountRules" ref="editAccountForm" label-width="100px" class="demo-form-inline">
+        <el-row>
+          <el-form-item label="账户号" prop="account_id">
+            {{ editAccountForm.account_id }}
+          </el-form-item>
+          <el-form-item label="账户类型" prop="account_type">
+            {{ editAccountForm.account_type }}
+          </el-form-item>
+        </el-row>
+        <el-row>
+          <el-form-item label="账户余额" prop="account_balance">
+            <el-input type="number" v-model.number="editAccountForm.account_balance" placeholder="账户余额"></el-input>
+          </el-form-item>
+          <el-form-item label="开户日期" prop="account_opendate">
+            <el-date-picker
+              disabled
+              v-model="editAccountForm.account_opendate"
+              type="datetime"
+              value-format="yyyy-MM-dd HH:mm:ss"
+              :picker-options="pickerOptions"
+              placeholder="请选择开户日期">
+            </el-date-picker>
+          </el-form-item>
+          <el-form-item label="所属支行" prop="branch_branch_name">
+            <el-select v-model="editAccountForm.branch_branch_name" placeholder="请选择所属支行" @change="branchChangedInEditForm">
+              <el-option
+                v-for="item in brOptions"
+                :key="item.branch_name"
+                :label="item.branch_name"
+                :value="item.branch_name">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="负责员工" prop="staff_staff">
+            <el-select v-model="editAccountForm.staff_staff" :disabled="staffDisInEditForm" :placeholder="staffDisInEditForm ? '请先选择支行' : '请选择负责员工'">
+              <el-option
+                v-for="item in staffOptionsInEditForm"
+                :key="item.staff_id"
+                :label="item.staff_name"
+                :value="item.staff_id">
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-row>
+      </el-form>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="accEditDialogFormVisible = false">取 消</el-button>
+        <el-button type="primary" @click="commitAccEdit">确 定</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -224,10 +278,13 @@ export default {
     return {
       accTableData: [],
       staffDis: true,
+      staffDisInEditForm: true,
       brOptions: [],
       staffOptions: [],
+      staffOptionsInEditForm: [],
       customerOptions: [],
       accDetailDialogFormVisible: false,
+      accEditDialogFormVisible: false,
       cusTableData: [],
       saveAccDetailTableData: [],
       checkAccDetailTableData: [],
@@ -294,6 +351,37 @@ export default {
         credit_line: [
           { required: !this.creditLineDisabled, message: '请输入透支额', trigger: 'change' },
           { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ]
+      },
+      editAccountForm: {
+        account_id: '',
+        account_balance: '',
+        account_type: '',
+        account_opendate: '',
+        branch_branch_name: '',
+        staff_staff: ''
+      },
+      editAccountRules: {
+        // account_id: [
+        //   { required: true, message: '请输入账户号', trigger: 'change' },
+        //   { min: 1, max: 6, message: '长度在 1 到 6 个字符', trigger: 'change' }
+        // ],
+        account_balance: [
+          { required: true, message: '请输入账户余额', trigger: 'change' },
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ],
+        // account_type: [
+        //   { required: true, message: '请选择账户类型', trigger: 'change' }
+        // ],
+        account_opendate: [
+          { required: true, message: '请选择开户日期', trigger: 'change' }
+        ],
+        staff_staff: [
+          { required: true, message: '请选择负责员工', trigger: 'change' }
+        ],
+        branch_branch_name: [
+          { required: true, message: '请选择所属支行', trigger: 'change' },
+          { validator: this.validateChooseBrInEditForm, trigger: 'change' }
         ]
       }
     }
@@ -376,6 +464,10 @@ export default {
       console.log('br change')
       this.addAccountForm.staff_staff = '' // 每次修改支行时将之前选择的员工清除
     },
+    branchChangedInEditForm: function () {
+      console.log('br change')
+      this.editAccountForm.staff_staff = '' // 每次修改支行时将之前选择的员工清除
+    },
     // 开户
     addAccountSubmit: function () {
       let _this = this
@@ -426,6 +518,29 @@ export default {
           console.log(error.response)
         })
         this.staffDis = false
+      }
+      callback()
+    },
+    validateChooseBrInEditForm: function (rule, value, callback) {
+      let _this = this
+      console.log('validate choose br in edit form:')
+      if (value !== '') {
+        axios.get('http://localhost:8000/api/staff/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'branch_name': this.editAccountForm.branch_branch_name
+          }
+        }).then(function (response) {
+          console.log('update staff selector in edit form:')
+          console.log(response.data)
+          _this.staffOptionsInEditForm = response.data
+        }).catch(function (error) {
+          console.log('get staff info error:')
+          console.log(error.response)
+        })
+        this.staffDisInEditForm = false
       }
       callback()
     },
@@ -493,8 +608,29 @@ export default {
       }
     },
     handleEdit: function (index, row) {
+      // let _this = this
       console.log('edit account info:')
       console.log('index = ', index, '    row = ', row)
+      this.accEditDialogFormVisible = true // 打开修改账户信息的 dialog
+      this.editAccountForm = Object.assign({}, row) // 复制
+    },
+    commitAccEdit: function () {
+      let _this = this
+      console.log('commit edited account info:')
+      axios.put('http://localhost:8000/api/account/', this.editAccountForm, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(function (response) {
+        console.log('response after edit account info')
+        console.log(response)
+        _this.getAccountInfo(_this)
+      }).catch(function (error) {
+        console.log('edit account info error:')
+        console.log(error.response)
+        _this.$alert(error.response, '修改账户信息出错')
+      })
+      this.accEditDialogFormVisible = false
     },
     // 删除账户
     handleDeleteAcc: function (index, row) {

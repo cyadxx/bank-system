@@ -277,6 +277,47 @@ def account_list(request):
         print('-----------------------------------account over POST method-----------------------------------')
         return resp
     
+    elif request.method == 'PUT':
+        # 未修改身份证号：valid一下然后直接save
+        # 修改了身份证号：若与其他人的重复则会报错：django.db.utils.IntegrityError
+        # .clean_fields() 不会检测身份证号重复
+        # .validate_unique() 可以检测unique约束，当与除自己外其他的元组有重复时会报错
+        print('-----------------------------------account received PUT method-----------------------------------')
+        print('request.data = ' + str(request.data))
+        
+        resp = {}
+
+        # 这段代码不能通过 serializer.is_valid 测试
+        old_acc = Account.objects.get(account_id=request.data['account_id'])
+        serializer = AccountSerializer(old_acc, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            print('updated account:')
+            resp = Response({'msg': 'Update successfully'})
+        else:
+            print('failed to update account info')
+            resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # acc = Account(**request.data) # 新建一个对象
+        # try:
+        #     acc.clean_fields()
+        # except django.core.exceptions.ValidationError as e:
+        #     print('clean_fields error:')
+        #     print(e)
+        #     resp = Response(e, status=status.HTTP_400_BAD_REQUEST)
+        # else:
+        #     try:
+        #         acc.save()
+        #     except django.db.utils.IntegrityError as e:
+        #         print('validate error:')
+        #         print(e)
+        #         resp = Response({'errmsg': str(e)}, status=status.HTTP_403_FORBIDDEN)
+        #     else:   # no error
+        #         resp = Response({'msg': 'Update account info successfully'}, status=status.HTTP_200_OK)
+
+        print('-----------------------------------account over PUT method-----------------------------------')
+        return resp
+    
     elif request.method == 'DELETE':
         print('-----------------------------------account received DELETE method-----------------------------------')
         print('received data: ')
@@ -298,8 +339,9 @@ def saveaccount_list(request):
     if request.method == 'GET':
         print('--------------------------------------saveaccount received GET method--------------------------------------')
         if len(request.query_params.dict()) == 0:
-            print('error: request should have params')
-            resp = Response({'errmsg': 'request to saveaccount should have params'}, status=status.HTTP_400_BAD_REQUEST)
+            saveaccs = SavingsAccount.objects.all()
+            serializer = SavingsAccountSerializer(saveaccs, many=True)
+            resp = Response(serializer.data)
         else:   # 有参数，参数是 {'account_id': row.account_id}，返回该账户
             account_id =request.query_params.dict()['account_id']
             saveacc = SavingsAccount.objects.filter(account_account=account_id)
@@ -317,8 +359,9 @@ def checkaccount_list(request):
     if request.method == 'GET':
         print('--------------------------------------checkaccount received GET method--------------------------------------')
         if len(request.query_params.dict()) == 0:
-            print('error: request should have params')
-            resp = Response({'errmsg': 'request to checkaccount should have params'}, status=status.HTTP_400_BAD_REQUEST)
+            checkaccs = CheckingAccount.objects.all()
+            serializer = CheckingAccountSerializer(checkaccs, many=True)
+            resp = Response(serializer.data)
         else:   # 有参数，参数是 {'account_id': row.account_id}，返回该账户
             account_id =request.query_params.dict()['account_id']
             checkacc = CheckingAccount.objects.filter(account_account=account_id)
