@@ -31,6 +31,12 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = ['account_id', 'account_balance', 'account_opendate', 'account_type', 'staff_staff', 'branch_branch_name']
 
 
+class CustomerHasAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerHasAccount
+        fields = ['customer', 'account_account', 'last_visit', 'belong_branch', 'acc_type']
+
+
 class CheckingAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = CheckingAccount

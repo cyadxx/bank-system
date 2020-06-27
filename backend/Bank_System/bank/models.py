@@ -70,7 +70,11 @@ class Account(models.Model):
     branch_branch_name = models.ForeignKey('Branch', models.DO_NOTHING, db_column='branch_branch_name')
 
     # 多对多关联，add by cya
-    account_owner = models.ManyToManyField(Customer, through='CustomerHasAccount')
+    account_owner = models.ManyToManyField(
+        Customer,
+        through='CustomerHasAccount',
+        through_fields=('account_account', 'customer')
+    )
 
     class Meta:
         managed = False

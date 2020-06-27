@@ -398,6 +398,21 @@ def checkaccount_list(request):
         return resp
 
 
+@api_view(['PUT'])
+def customerhasaccount_list(request):
+    if request.method == 'PUT':
+        print('--------------------------------------customerhasaccoun received PUT method--------------------------------------')
+        print('request.data = ' + str(request.data))
+
+        CHA = CustomerHasAccount.objects.get(customer=request.data['custom_id'], account_account=request.data['account_id'])
+        CHA.last_visit = request.data['last_visit']
+        ret_val = CHA.save()
+        resp = Response(ret_val)
+        
+        print('--------------------------------------customerhasaccoun over PUT method--------------------------------------')
+        return resp
+
+
 @api_view(['GET', 'POST', 'DELETE'])
 def loan_list(request):
     """
