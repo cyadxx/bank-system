@@ -255,12 +255,20 @@ def account_list(request):
                     return resp
             
             # 处理 customer_has_account 表
+            # 处理一个人在一个支行最多有一个储蓄账户或支票账户
             belong_branch = Branch.objects.get(branch_name=request.data['branch_branch_name'])
             for cus_id in customer_id_list:
                 print('cus_id = ' + str(cus_id))
                 cus = Customer.objects.get(id=cus_id)
                 CHA = CustomerHasAccount(customer=cus, account_account=acc, last_visit=request.data['account_opendate'], belong_branch=belong_branch, acc_type=request.data['account_type'])
-                CHA.save()
+                try:
+                    CHA.save()
+                except django.db.utils.IntegrityError as e:
+                    print('failed when adding to table customer_has_account:')
+                    print(str(e))
+                    print('typeof e = ' + str(type(e)))
+                    resp = Response({'errmsg': str(e)}, status=status.HTTP_403_FORBIDDEN)
+                    return resp
 
             resp = Response(acc_serializer.data, status=status.HTTP_201_CREATED)
         else:
