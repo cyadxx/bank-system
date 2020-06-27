@@ -125,6 +125,7 @@ DATABASES = {
         'NAME': 'bankdbv0',
         'HOST': '127.0.0.1',
         'PORT': 3306,
+        'ATOMIC_REQUESTS': True,    # 让每个 view 成为一个事务
     }
 }
 
