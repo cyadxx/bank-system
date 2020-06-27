@@ -137,31 +137,32 @@
     <!--点击“详情”按钮的弹出框-->
     <el-dialog title="该账户的详细信息" :visible.sync="accDetailDialogFormVisible" width="80%">
       <h3 v-if="saveaccountDisplay">本账户是储蓄账户</h3>
-      <el-table
-        v-if="saveaccountDisplay"
-        :data="saveAccDetailTableData"
-        style="width: 100%">
-        <el-table-column
-          prop="interset_rate"
-          label="利率"
-          width="200">
-        </el-table-column>
-        <el-table-column
-          prop="currency_type"
-          label="货币类型">
-        </el-table-column>
-      </el-table>
+      <h3 v-else>本账户是支票账户</h3>
 
-      <h3 v-if="!saveaccountDisplay">本账户是支票账户</h3>
-      <el-table
-        v-if="!saveaccountDisplay"
-        :data="checkAccDetailTableData"
-        style="width: 100%">
-        <el-table-column
-          prop="credit_line"
-          label="透支额">
-        </el-table-column>
-      </el-table>
+      <el-form :inline="true" :model="saveCheckAccForm" :rules="saveCheckAccRules" ref="saveCheckAccForm" class="demo-form-inline">
+        <el-form-item label="利率" prop="interset_rate" v-if="saveaccountDisplay">
+          <el-input type="number" v-model.number="saveCheckAccForm.interset_rate"
+            :disabled="!editSaveCheckInfo" placeholder="利率">
+          </el-input>
+        </el-form-item>
+        <el-form-item label="货币类型" prop="currency_type" v-if="saveaccountDisplay">
+          <el-input :disabled="!editSaveCheckInfo" v-model="saveCheckAccForm.currency_type" placeholder="货币类型"></el-input>
+        </el-form-item>
+        <el-form-item label="透支额" prop="credit_line" v-if="!saveaccountDisplay">
+          <el-input type="number" v-model.number="saveCheckAccForm.credit_line"
+            :disabled="!editSaveCheckInfo" placeholder="透支额">
+          </el-input>
+        </el-form-item>
+        <el-form-item v-if="!editSaveCheckInfo">
+          <el-button type="primary" plain size="large" @click="handleEditSaveCheck">修改</el-button>
+        </el-form-item>
+        <el-form-item v-if="editSaveCheckInfo">
+          <el-button type="primary" plain size="large" @click="handleEditSaveCheckCommit">提交</el-button>
+        </el-form-item>
+        <el-form-item v-if="editSaveCheckInfo">
+          <el-button plain size="large" @click="handleEditSaveCheckCancel">取消</el-button>
+        </el-form-item>
+      </el-form>
 
       <h3>账户的所有者</h3>
       <el-table
@@ -187,7 +188,7 @@
           label="家庭住址"
           width="160">
         </el-table-column>
-        <el-table-column
+        <!-- <el-table-column
           prop="contact_name"
           label="联系人姓名"
           width="100">
@@ -205,6 +206,23 @@
         <el-table-column
           prop="contact_custom_relation"
           label="二者关系">
+        </el-table-column> -->
+        <el-table-column
+          prop="last_visit"
+          label="最后访问该账户的时间"
+          width="200">
+        </el-table-column>
+        <el-table-column label="操作">
+          <template slot-scope="scope">
+            <el-button
+              size="mini"
+              type="primary" plain
+              @click="handleAccessAccount(scope.$index, scope.row)">访问账户</el-button>
+            <el-button
+              size="mini"
+              type="danger" plain
+              @click="handleDeleteAccOwner(scope.$index, scope.row)">删除</el-button>
+          </template>
         </el-table-column>
       </el-table>
 
@@ -286,10 +304,16 @@ export default {
       accDetailDialogFormVisible: false,
       accEditDialogFormVisible: false,
       cusTableData: [],
-      saveAccDetailTableData: [],
-      checkAccDetailTableData: [],
       openAccIndex: 0,
       saveaccountDisplay: true,
+      editSaveCheckInfo: false,
+      saveCheckAccForm: {
+        account_account: '',
+        interset_rate: '',
+        currency_type: '',
+        credit_line: ''
+      },
+      saveCheckAccFormBackup: {},
       typeOptions: [{
         type: 'saveaccount',
         type_name: '储蓄账户'
@@ -383,6 +407,21 @@ export default {
           { required: true, message: '请选择所属支行', trigger: 'change' },
           { validator: this.validateChooseBrInEditForm, trigger: 'change' }
         ]
+      },
+      saveCheckAccRules: {
+        interset_rate: [
+          { required: true, message: '请输入利率', trigger: 'change' },
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' },
+          { validator: this.validateInterestRate, trigger: 'change' }
+        ],
+        currency_type: [
+          { required: true, message: '请输入货币类型', trigger: 'change' },
+          { min: 1, max: 10, message: '长度在 1 到 10 个字符', trigger: 'change' }
+        ],
+        credit_line: [
+          { required: true, message: '请输入透支额', trigger: 'change' },
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ]
       }
     }
   },
@@ -426,6 +465,46 @@ export default {
         _this.accTableData = response.data
       }).catch(function (error) {
         console.log('get account info error:')
+        console.log(error.response)
+      })
+    },
+    getSaveAccountInfo: function (_this) {
+      axios.get('http://localhost:8000/api/saveacc/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'account_id': _this.accTableData[_this.openAccIndex].account_id
+        }
+      }).then(function (response) {
+        console.log('get save account table:')
+        console.log(response.data[0].currency_type)
+        _this.saveCheckAccForm.account_account = response.data[0].account_account
+        _this.saveCheckAccForm.interset_rate = response.data[0].interset_rate
+        _this.saveCheckAccForm.currency_type = response.data[0].currency_type
+        _this.saveCheckAccForm.credit_line = ''
+      }).catch(function (error) {
+        console.log('get save account info error:')
+        console.log(error.response)
+      })
+    },
+    getCheckAccountInfo: function (_this) {
+      axios.get('http://localhost:8000/api/checkacc/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'account_id': _this.accTableData[_this.openAccIndex].account_id
+        }
+      }).then(function (response) {
+        console.log('get check account table:')
+        console.log(response.data)
+        _this.saveCheckAccForm.account_account = response.data[0].account_account
+        _this.saveCheckAccForm.interset_rate = ''
+        _this.saveCheckAccForm.currency_type = ''
+        _this.saveCheckAccForm.credit_line = response.data[0].credit_line
+      }).catch(function (error) {
+        console.log('get check account info error:')
         console.log(error.response)
       })
     },
@@ -552,6 +631,8 @@ export default {
       }
     },
     handleViewDetail: function (index, row) {
+      // 需要获取每个客户访问该账户的日期
+      // 思路：发请求给 account，通过 manytomanyfield
       let _this = this
       console.log('view account detail:')
       console.log('index = ', index, '    row = ', row)
@@ -574,37 +655,9 @@ export default {
         console.log(error.response)
       })
       if (this.saveaccountDisplay === true) { // 储蓄账户
-        axios.get('http://localhost:8000/api/saveacc/', {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          params: {
-            'account_id': row.account_id
-          }
-        }).then(function (response) {
-          console.log('get save account table:')
-          console.log(response.data)
-          _this.saveAccDetailTableData = response.data
-        }).catch(function (error) {
-          console.log('get save account info error:')
-          console.log(error.response)
-        })
+        this.getSaveAccountInfo(this)
       } else { // 支票账户
-        axios.get('http://localhost:8000/api/checkacc/', {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          params: {
-            'account_id': row.account_id
-          }
-        }).then(function (response) {
-          console.log('get check account table:')
-          console.log(response.data)
-          _this.checkAccDetailTableData = response.data
-        }).catch(function (error) {
-          console.log('get check account info error:')
-          console.log(error.response)
-        })
+        this.getCheckAccountInfo(this)
       }
     },
     handleEdit: function (index, row) {
@@ -649,6 +702,71 @@ export default {
         console.log('delete account error: ' + error)
         _this.$alert('删除账户出错', '删除出错')
       })
+    },
+    handleEditSaveCheck: function () {
+      this.editSaveCheckInfo = true
+      this.saveCheckAccFormBackup = Object.assign({}, this.saveCheckAccForm) // 复制
+    },
+    handleEditSaveCheckCancel: function () {
+      this.editSaveCheckInfo = false
+      this.saveCheckAccForm = Object.assign({}, this.saveCheckAccFormBackup)
+    },
+    handleEditSaveCheckCommit: function () {
+      let _this = this
+      console.log('edit save or check info:')
+      console.log('this.saveCheckAccForm', this.saveCheckAccForm)
+      this.editSaveCheckInfo = false
+      this.$refs.saveCheckAccForm.validate((valid) => {
+        if (valid) {
+          console.log('saveCheckAccForm validate pass !!!!!!!!!!!!!!!')
+          if (this.saveaccountDisplay === true) { // 修改了储蓄账户
+            axios.put('http://localhost:8000/api/saveacc/', this.saveCheckAccForm, {
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }).then(function (response) {
+              console.log('edit save account suuccessfully:')
+              console.log(response.data)
+              _this.$message('修改储蓄账户信息成功')
+              _this.getSaveAccountInfo(_this)
+            }).catch(function (error) {
+              console.log('edit save account info error:')
+              console.log(error.response)
+              _this.$alert(error.response.data, '修改储蓄账户出错')
+              _this.saveCheckAccForm = Object.assign({}, _this.saveCheckAccFormBackup)
+            })
+          } else { // 修改了支票账户
+            axios.put('http://localhost:8000/api/checkacc/', this.saveCheckAccForm, {
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }).then(function (response) {
+              console.log('edit check account suuccessfully:')
+              console.log(response.data)
+              _this.$message('修改支票账户信息成功')
+              _this.getCheckAccountInfo(_this)
+            }).catch(function (error) {
+              console.log('edit check account info error:')
+              console.log(error.response)
+              _this.$alert(error.response.data, '修改支票账户出错')
+              _this.saveCheckAccForm = Object.assign({}, _this.saveCheckAccFormBackup)
+            })
+          }
+        } else {
+          console.log('edit save check account Submit error')
+          this.$alert('请按照输入框下的提示输入正确的信息', '修改出错')
+          this.editSaveCheckInfo = true
+          return false
+        }
+      })
+    },
+    handleAccessAccount: function (index, row) {
+      console.log('access this account')
+      console.log('index = ', index, '    row = ', row)
+    },
+    handleDeleteAccOwner: function (index, row) {
+      console.log('access this account')
+      console.log('index = ', index, '    row = ', row)
     }
   },
   mounted: function () {
@@ -662,5 +780,13 @@ export default {
 <style scoped>
 .button-right {
   float: right;
+}
+
+.edit-button {
+  margin-top: 10px;
+}
+
+.detail-info {
+  width: 206px;
 }
 </style>

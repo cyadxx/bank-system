@@ -195,6 +195,8 @@ def account_list(request):
             acc = Account.objects.get(account_id=account_id)
             cus = acc.account_owner.all()
             serializer = CustomerSerializer(cus, many=True)
+            for i in range(len(cus)):
+                serializer.data[i]['last_visit'] = cus[i].customerhasaccount_set.get(account_account=account_id).last_visit
             resp = Response(serializer.data)
         print('--------------------------------------account over GET method--------------------------------------')
         return resp
@@ -285,35 +287,15 @@ def account_list(request):
         print('-----------------------------------account received PUT method-----------------------------------')
         print('request.data = ' + str(request.data))
         
-        resp = {}
-
-        # 这段代码不能通过 serializer.is_valid 测试
         old_acc = Account.objects.get(account_id=request.data['account_id'])
-        serializer = AccountSerializer(old_acc, data=request.data)
+        serializer = AccountSerializer(old_acc, data=request.data)  # 这样才能 update
         if serializer.is_valid():
             serializer.save()
             print('updated account:')
-            resp = Response({'msg': 'Update successfully'})
+            resp = Response({'msg': 'Update account successfully'})
         else:
             print('failed to update account info')
             resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        # acc = Account(**request.data) # 新建一个对象
-        # try:
-        #     acc.clean_fields()
-        # except django.core.exceptions.ValidationError as e:
-        #     print('clean_fields error:')
-        #     print(e)
-        #     resp = Response(e, status=status.HTTP_400_BAD_REQUEST)
-        # else:
-        #     try:
-        #         acc.save()
-        #     except django.db.utils.IntegrityError as e:
-        #         print('validate error:')
-        #         print(e)
-        #         resp = Response({'errmsg': str(e)}, status=status.HTTP_403_FORBIDDEN)
-        #     else:   # no error
-        #         resp = Response({'msg': 'Update account info successfully'}, status=status.HTTP_200_OK)
 
         print('-----------------------------------account over PUT method-----------------------------------')
         return resp
@@ -331,7 +313,7 @@ def account_list(request):
         return Response({'msg': 'Delete account successful'})
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PUT'])
 def saveaccount_list(request):
     """
     List all save accounts.
@@ -349,9 +331,31 @@ def saveaccount_list(request):
             resp = Response(serializer.data)
         print('--------------------------------------saveaccount over GET method--------------------------------------')
         return resp
+    
+    elif request.method == 'PUT':
+        print('--------------------------------------saveaccount received PUT method--------------------------------------')
+        print('request.data = ' + str(request.data))
+
+        if request.data['credit_line'] != '':
+            print('[error] receive check account data in save account view')
+            return Response({'errmsg': 'receive check account data in save account view'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        request.data.pop('credit_line')
+        old_save_acc = SavingsAccount.objects.get(account_account=request.data['account_account'])
+        serializer = SavingsAccountSerializer(old_save_acc, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            print('updated save account:')
+            resp = Response({'msg': 'Update saving account successfully'})
+        else:
+            print('failed to update saving account info')
+            resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        print('--------------------------------------saveaccount over PUT method--------------------------------------')
+        return resp
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PUT'])
 def checkaccount_list(request):
     """
     List all check accounts.
@@ -368,6 +372,29 @@ def checkaccount_list(request):
             serializer = CheckingAccountSerializer(checkacc, many=True)
             resp = Response(serializer.data)
         print('--------------------------------------checkaccount over GET method--------------------------------------')
+        return resp
+    
+    elif request.method == 'PUT':
+        print('--------------------------------------checkaccount received PUT method--------------------------------------')
+        print('request.data = ' + str(request.data))
+
+        if request.data['currency_type'] != '':
+            print('[error] receive saving account data in check account view')
+            return Response({'errmsg': 'receive saving account data in check account view'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        request.data.pop('currency_type')
+        request.data.pop('interset_rate')
+        old_check_acc = CheckingAccount.objects.get(account_account=request.data['account_account'])
+        serializer = CheckingAccountSerializer(old_check_acc, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            print('updated check account:')
+            resp = Response({'msg': 'Update check account successfully'})
+        else:
+            print('failed to update check account info')
+            resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        print('--------------------------------------checkaccount over PUT method--------------------------------------')
         return resp
 
 
