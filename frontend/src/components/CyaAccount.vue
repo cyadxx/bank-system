@@ -135,7 +135,7 @@
     </el-row>
 
     <!--点击“详情”按钮的弹出框-->
-    <el-dialog title="该账户的详细信息" :visible.sync="accDetailDialogFormVisible" width="80%">
+    <el-dialog title="该账户的详细信息" :before-close="handleViewDetailDialogClose" :visible.sync="accDetailDialogFormVisible" width="80%">
       <h3 v-if="saveaccountDisplay">本账户是储蓄账户</h3>
       <h3 v-else>本账户是支票账户</h3>
 
@@ -214,10 +214,26 @@
         </el-table-column>
         <el-table-column label="操作">
           <template slot-scope="scope">
-            <el-button
-              size="mini"
-              type="primary" plain
-              @click="handleAccessAccount(scope.$index, scope.row)">访问账户</el-button>
+            <el-popover
+              placement="top"
+              trigger="manual"
+              v-model="popoverVisible[scope.$index]">
+              <el-date-picker
+                v-model="changedAccessAccountLastDate"
+                type="datetime"
+                value-format="yyyy-MM-dd HH:mm:ss"
+                :picker-options="pickerOptions"
+                placeholder="请选择开户日期">
+              </el-date-picker>
+              <el-button
+                @click="handleAccessAccountCommit(scope.$index, scope.row)"
+                type="primary" plain>提交</el-button>
+              <el-button
+                slot="reference"
+                size="mini"
+                type="primary" plain
+                @click="handleAccessAccount(scope.$index, scope.row)">访问账户</el-button>
+            </el-popover>
             <el-button
               size="mini"
               type="danger" plain
@@ -227,7 +243,7 @@
       </el-table>
 
       <div slot="footer" class="dialog-footer">
-        <el-button @click="accDetailDialogFormVisible = false">关 闭</el-button>
+        <el-button @click="handleViewDetailDialogClose">关 闭</el-button>
       </div>
     </el-dialog>
 
@@ -305,6 +321,8 @@ export default {
       accEditDialogFormVisible: false,
       cusTableData: [],
       openAccIndex: 0,
+      popoverVisible: [],
+      changedAccessAccountLastDate: '',
       saveaccountDisplay: true,
       editSaveCheckInfo: false,
       saveCheckAccForm: {
@@ -650,6 +668,7 @@ export default {
         console.log('get customer table:')
         console.log(response.data)
         _this.cusTableData = response.data
+        console.log('cusTableData.length = ', _this.cusTableData.length)
       }).catch(function (error) {
         console.log('get customers info error:')
         console.log(error.response)
@@ -659,6 +678,13 @@ export default {
       } else { // 支票账户
         this.getCheckAccountInfo(this)
       }
+    },
+    handleViewDetailDialogClose: function (done) {
+      this.popoverVisible = []
+      console.log('close dialog')
+      console.log('popoverVisible', this.popoverVisible)
+      // done()
+      this.accDetailDialogFormVisible = false
     },
     handleEdit: function (index, row) {
       // let _this = this
@@ -763,10 +789,66 @@ export default {
     handleAccessAccount: function (index, row) {
       console.log('access this account')
       console.log('index = ', index, '    row = ', row)
+      if (this.popoverVisible[index] === true) {
+        this.popoverVisible = []
+      } else {
+        this.popoverVisible = []
+        this.popoverVisible[index] = !this.popoverVisible[index]
+      }
+      console.log('popoverVisible[index] = ', this.popoverVisible[index])
+      this.changedAccessAccountLastDate = new Date(row.last_visit)
+    },
+    // 账户拥有者访问账户，向 cusacc/ 发请求，内容是 custom_id, account_id, last_visit
+    handleAccessAccountCommit: function (index, row) {
+      let _this = this
+      console.log('access this account commit')
+      console.log('index = ', index, '    row = ', row)
+      let accessAccountDict = {
+        'custom_id': row.id,
+        'account_id': this.accTableData[this.openAccIndex].account_id,
+        'last_visit': this.changedAccessAccountLastDate
+      }
+      console.log('accessAccountDict = ', accessAccountDict)
+      axios.put('http://localhost:8000/api/cusacc/', accessAccountDict, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(function (response) {
+        console.log('response after access account')
+        console.log(response)
+        // 要更新客户的信息，关闭日期输入框
+        let __this = _this
+        _this.popoverVisible = []
+        axios.get('http://localhost:8000/api/account/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'account_id': _this.accTableData[_this.openAccIndex].account_id
+          }
+        }).then(function (response) {
+          console.log('get customer table:')
+          console.log(response.data)
+          __this.cusTableData = response.data // note
+          console.log('cusTableData.length = ', __this.cusTableData.length)
+        }).catch(function (error) {
+          console.log('get customers info error:')
+          console.log(error.response)
+        })
+      }).catch(function (error) {
+        console.log('access account error:')
+        console.log(error)
+        _this.$alert(error, '访问账户出错')
+      })
     },
     handleDeleteAccOwner: function (index, row) {
       console.log('access this account')
       console.log('index = ', index, '    row = ', row)
+      let deleteAccountDict = {
+        'custom_id': row.id,
+        'account_id': this.accTableData[this.openAccIndex].account_id,
+        'last_visit': this.changedAccessAccountLastDate
+      }
     }
   },
   mounted: function () {
