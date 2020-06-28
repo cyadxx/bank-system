@@ -235,6 +235,7 @@
                 @click="handleAccessAccount(scope.$index, scope.row)">访问账户</el-button>
             </el-popover>
             <el-button
+              :disabled="cusTableData.length === 1"
               size="mini"
               type="danger" plain
               @click="handleDeleteAccOwner(scope.$index, scope.row)">删除</el-button>
@@ -320,6 +321,7 @@ export default {
       accDetailDialogFormVisible: false,
       accEditDialogFormVisible: false,
       cusTableData: [],
+      deleteAccOwnerDisabled: false,
       openAccIndex: 0,
       popoverVisible: [],
       changedAccessAccountLastDate: '',
@@ -724,6 +726,7 @@ export default {
       }).then(function (response) {
         console.log('received info for delete account method: ', response)
         _this.getAccountInfo(_this) // 更新 account table
+        _this.$message('删除账户成功')
       }).catch(function (error) {
         console.log('delete account error: ' + error)
         _this.$alert('删除账户出错', '删除出错')
@@ -817,8 +820,8 @@ export default {
         console.log('response after access account')
         console.log(response)
         // 要更新客户的信息，关闭日期输入框
-        let __this = _this
         _this.popoverVisible = []
+        let __this = _this
         axios.get('http://localhost:8000/api/account/', {
           headers: {
             'Content-Type': 'application/json'
@@ -835,6 +838,7 @@ export default {
           console.log('get customers info error:')
           console.log(error.response)
         })
+        _this.$message('访问账户成功')
       }).catch(function (error) {
         console.log('access account error:')
         console.log(error)
@@ -842,13 +846,44 @@ export default {
       })
     },
     handleDeleteAccOwner: function (index, row) {
+      let _this = this
       console.log('access this account')
       console.log('index = ', index, '    row = ', row)
       let deleteAccountDict = {
         'custom_id': row.id,
-        'account_id': this.accTableData[this.openAccIndex].account_id,
-        'last_visit': this.changedAccessAccountLastDate
+        'account_id': this.accTableData[this.openAccIndex].account_id
       }
+      console.log('deleteAccountDict = ', deleteAccountDict)
+      axios.delete('http://localhost:8000/api/cusacc/', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: deleteAccountDict
+      }).then(function (response) {
+        console.log('received info for delete customer_jas_account: ', response)
+        // 更新 customer table
+        let __this = _this
+        axios.get('http://localhost:8000/api/account/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'account_id': _this.accTableData[_this.openAccIndex].account_id
+          }
+        }).then(function (response) {
+          console.log('get customer table:')
+          console.log(response.data)
+          __this.cusTableData = response.data // note
+          console.log('cusTableData.length = ', __this.cusTableData.length)
+        }).catch(function (error) {
+          console.log('get customers info error:')
+          console.log(error.response)
+        })
+        _this.$message('删除账户所有者成功')
+      }).catch(function (error) {
+        console.log('delete customer_has_account error: ' + error)
+        _this.$alert(error, '删除账户所有者出错')
+      })
     }
   },
   mounted: function () {

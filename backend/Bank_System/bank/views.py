@@ -398,7 +398,7 @@ def checkaccount_list(request):
         return resp
 
 
-@api_view(['PUT'])
+@api_view(['PUT', 'DELETE'])
 def customerhasaccount_list(request):
     if request.method == 'PUT':
         print('--------------------------------------customerhasaccoun received PUT method--------------------------------------')
@@ -410,6 +410,18 @@ def customerhasaccount_list(request):
         resp = Response(ret_val)
         
         print('--------------------------------------customerhasaccoun over PUT method--------------------------------------')
+        return resp
+    
+    elif request.method == 'DELETE':
+        print('--------------------------------------customerhasaccoun received DELETE method--------------------------------------')
+        print('customerhasaccoun received data: ')
+        print(request.data)
+
+        CHA = CustomerHasAccount.objects.get(customer=request.data['custom_id'], account_account=request.data['account_id'])
+        print('CHA to be deleted: ' + str(CHA))
+        CHA.delete()
+        resp = Response({'msg': 'success'})
+        print('--------------------------------------customerhasaccoun over DELETE method--------------------------------------')
         return resp
 
 
