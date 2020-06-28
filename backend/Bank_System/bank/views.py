@@ -111,9 +111,37 @@ def customer_list(request):
     List all customers, or create a new customer.
     """
     if request.method == 'GET':
-        customers = Customer.objects.all()
-        serializer = CustomerSerializer(customers, many=True)
-        return Response(serializer.data)
+        print('-----------------------------------customer received GET method-----------------------------------')
+        if len(request.query_params.dict()) == 0:
+            customers = Customer.objects.all()
+            serializer = CustomerSerializer(customers, many=True)
+            resp = Response(serializer.data)
+        else:   # 按条件查询客户
+            print('has params, request = ')
+            print(request.query_params.dict())
+            # TODO
+            query_dict = request.query_params.dict()
+            selected_customers = Customer.objects.filter(
+                custom_id__startswith=query_dict['custom_id']
+            ).filter(
+                custom_name__icontains=query_dict['custom_name']
+            ).filter(
+                custom_phone__icontains=query_dict['custom_phone']
+            ).filter(
+                custom_address__icontains=query_dict['custom_address']
+            ).filter(
+                contact_name__icontains=query_dict['contact_name']
+            ).filter(
+                contact_phone__icontains=query_dict['contact_phone']
+            ).filter(
+                contact_email__icontains=query_dict['contact_email']
+            ).filter(
+                contact_custom_relation__icontains=query_dict['contact_custom_relation']
+            )
+            serializer = CustomerSerializer(selected_customers, many=True)
+            resp = Response(serializer.data)
+        print('-----------------------------------customer over GET method-----------------------------------')
+        return resp
 
     elif request.method == 'POST':
         print('-----------------------------------customer received POST method-----------------------------------')

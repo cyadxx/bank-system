@@ -1,6 +1,51 @@
 <template>
   <div>
     <el-row>
+      <h3>查询</h3>
+    </el-row>
+    <el-row>
+      <el-form :inline="true" :model="queryCusForm" :rules="queryCusRules" ref="queryCusForm" label-width="100px" class="demo-form-inline">
+        <el-form-item label="身份证号" prop="custom_id">
+          <el-input v-model="queryCusForm.custom_id" placeholder="客户身份证号"></el-input>
+        </el-form-item>
+        <el-form-item label="姓名" prop="custom_name">
+          <el-input v-model="queryCusForm.custom_name" placeholder="姓名"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号" prop="custom_phone">
+          <el-input v-model="queryCusForm.custom_phone" placeholder="手机号"></el-input>
+        </el-form-item>
+        <el-form-item label="地址" prop="custom_address">
+          <el-input v-model="queryCusForm.custom_address" placeholder="家庭住址"></el-input>
+        </el-form-item>
+        <el-form-item label="联系人姓名" prop="contact_name">
+          <el-input v-model="queryCusForm.contact_name" placeholder="联系人姓名"></el-input>
+        </el-form-item>
+        <el-form-item label="联系人电话" prop="contact_phone">
+          <el-input v-model="queryCusForm.contact_phone" placeholder="联系人电话"></el-input>
+        </el-form-item>
+        <el-form-item label="联系人邮箱" prop="contact_email">
+          <el-input v-model="queryCusForm.contact_email" placeholder="联系人邮箱"></el-input>
+        </el-form-item>
+        <el-form-item label="二者关系" prop="contact_custom_relation">
+          <el-input v-model="queryCusForm.contact_custom_relation" placeholder="二者关系"></el-input>
+        </el-form-item>
+        <el-form-item class="button-right">
+          <el-button type="primary" size="medium" @click="queryCusSubmit">查询</el-button>
+        </el-form-item>
+        <el-form-item class="button-right">
+          <el-button size="medium" @click="clearQueryForm">清空</el-button>
+        </el-form-item>
+      </el-form>
+    </el-row>
+
+    <el-row>
+      <h3>客户列表</h3>
+      <!-- <h3>
+        客户列表
+        <el-button type="primary" size="medium" @click="queryCusSubmit" class="button-right">查询</el-button>
+      </h3> -->
+    </el-row>
+    <el-row>
       <el-table
         :data="tableData"
         style="width: 100%">
@@ -57,6 +102,7 @@
         </el-table-column>
       </el-table>
     </el-row>
+
     <el-row>
       <h3>添加新客户</h3>
     </el-row>
@@ -92,6 +138,7 @@
       </el-form>
     </el-row>
 
+    <!--点击“编辑”按钮弹出的页面-->
     <el-dialog title="修改客户信息" :visible.sync="dialogFormVisible">
       <el-form :inline="true" :model="editCusForm" :rules="addCusRules" label-width="100px" class="demo-form-inline">
         <el-form-item label="身份证号" prop="custom_id">
@@ -183,6 +230,45 @@ export default {
           { min: 1, max: 10, message: '长度在 1 到 10 个字符', trigger: 'change' }
         ]
       },
+      queryCusForm: {
+        custom_id: '',
+        custom_name: '',
+        custom_phone: '',
+        custom_address: '',
+        contact_name: '',
+        contact_phone: '',
+        contact_email: '',
+        contact_custom_relation: ''
+      },
+      queryCusRules: {
+        custom_id: [
+          { min: 0, max: 18, message: '长度最多为 18 个字符', trigger: 'change' },
+          { validator: this.validateCustomId, trigger: 'change' }
+        ],
+        custom_name: [
+          { min: 0, max: 10, message: '长度最多 10 个字符', trigger: 'change' }
+        ],
+        custom_phone: [
+          { pattern: '^[0-9]*$', message: '手机号只允许出现数字', trigger: 'change' },
+          { min: 0, max: 11, message: '长度最多 11 个字符', trigger: 'change' }
+        ],
+        custom_address: [
+          { min: 0, max: 100, message: '长度最多 100 个字符', trigger: 'change' }
+        ],
+        contact_name: [
+          { min: 0, max: 10, message: '长度最多 10 个字符', trigger: 'change' }
+        ],
+        contact_phone: [
+          { pattern: '^[0-9]*$', message: '手机号只允许出现数字', trigger: 'change' },
+          { min: 0, max: 11, message: '长度最多 11 个字符', trigger: 'change' }
+        ],
+        contact_email: [
+          { min: 0, max: 30, message: '长度最多 30 个字符', trigger: 'change' }
+        ],
+        contact_custom_relation: [
+          { min: 0, max: 10, message: '长度最多 10 个字符', trigger: 'change' }
+        ]
+      },
       dialogFormVisible: false,
       editCusForm: {
         custom_id: '',
@@ -209,6 +295,9 @@ export default {
       console.log(response.data)
       console.log('type:', typeof (response.data))
       _this.tableData = response.data
+    }).catch(function (error) {
+      console.log('get customer info error')
+      _this.$alert(error, '获取账户信息出错')
     })
   },
   methods: {
@@ -221,6 +310,9 @@ export default {
         console.log('update table:')
         console.log(response.data)
         _this.tableData = response.data
+      }).catch(function (error) {
+        console.log('get customer info error')
+        _this.$alert(error, '获取账户信息出错')
       })
     },
     addCusSubmit: function () {
@@ -247,6 +339,33 @@ export default {
         } else {
           console.log('addCusSubmit error')
           this.$alert('请按照提示输入正确的信息', '添加新客户出错')
+          return false
+        }
+      })
+    },
+    queryCusSubmit: function () {
+      console.log('query customer')
+      let _this = this
+      this.$refs.queryCusForm.validate((valid) => {
+        if (valid) {
+          console.log('query info is valid, perform the query')
+          axios.get('http://localhost:8000/api/customer/', {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            params: this.queryCusForm
+          }).then(function (response) {
+            console.log('query customers according to the filter info:')
+            console.log(response.data)
+            _this.tableData = response.data
+            console.log('_this.tableData = ', _this.tableData)
+          }).catch(function (error) {
+            console.log('query customer info error')
+            _this.$alert(error, '查询账户信息出错')
+          })
+        } else {
+          console.log('queryCusSubmit error')
+          this.$alert('请按照提示输入正确的信息', '按条件查询客户出错')
           return false
         }
       })
@@ -299,14 +418,33 @@ export default {
       // 检查客户身份证号，只允许出现数字，最后一位还允许出现 X
       let valid = true
       for (let i = 0; i < value.length; i++) {
-        if ((isNaN(value[i]) === true) && (value[i] !== 'X')) {
-          valid = false
+        if (i !== 17) { // 除了第 18 位其他必须是数字
+          if (isNaN(value[i]) === true) {
+            valid = false
+          }
+        }
+        if (i === 17) {
+          if ((isNaN(value[i]) === true) && (value[i] !== 'X')) {
+            valid = false
+          }
         }
       }
       if (!valid) {
         callback(new Error('不允许输入除数字和 X 以外的字符'))
       } else {
         callback()
+      }
+    },
+    clearQueryForm: function () {
+      this.queryCusForm = {
+        custom_id: '',
+        custom_name: '',
+        custom_phone: '',
+        custom_address: '',
+        contact_name: '',
+        contact_phone: '',
+        contact_email: '',
+        contact_custom_relation: ''
       }
     }
   }
