@@ -243,6 +243,32 @@
         </el-table-column>
       </el-table>
 
+      <h4>添加账户所有者</h4>
+      <el-form :inline="true" :model="addAccountOwnerForm" :rules="addAccountOwnerRules" ref="addAccountOwnerForm" label-width="120px" class="demo-form-inline">
+        <el-form-item label="加入账户日期" prop="last_visit">
+          <el-date-picker
+            v-model="addAccountOwnerForm.last_visit"
+            type="datetime"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            :picker-options="pickerOptions"
+            placeholder="请选择开户日期">
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item label="账户所有者" prop="customer">
+          <el-select v-model="addAccountOwnerForm.customer" placeholder="请选择开户客户">
+            <el-option
+              v-for="item in customerOptions"
+              :key="item.id"
+              :label="item.custom_name"
+              :value="item.id">
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" plain size="large" @click="addAccountOwnerSubmit">添 加</el-button>
+        </el-form-item>
+      </el-form>
+
       <div slot="footer" class="dialog-footer">
         <el-button @click="handleViewDetailDialogClose">关 闭</el-button>
       </div>
@@ -381,7 +407,7 @@ export default {
           { validator: this.validateChooseBr, trigger: 'change' }
         ],
         customer_id_list: [
-          { required: true, message: '请选则贷款客户', trigger: 'change' }
+          { required: true, message: '请选则开户客户', trigger: 'change' }
         ],
         interset_rate: [
           { required: !this.intersetRateDisabled, message: '请输入利率', trigger: 'change' },
@@ -441,6 +467,25 @@ export default {
         credit_line: [
           { required: true, message: '请输入透支额', trigger: 'change' },
           { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ]
+      },
+      addAccountOwnerForm: {
+        account_account: '',
+        customer: '',
+        last_visit: '',
+        acc_type: '',
+        belong_branch: ''
+      },
+      addAccountOwnerRules: {
+        account_account: [
+          { required: true, message: '请输入账户号', trigger: 'change' },
+          { min: 1, max: 6, message: '长度在 1 到 6 个字符', trigger: 'change' }
+        ],
+        customer_id: [
+          { required: true, message: '请选则加入账户的客户', trigger: 'change' }
+        ],
+        last_visit: [
+          { required: true, message: '请选择加入账户的日期', trigger: 'change' }
         ]
       }
     }
@@ -588,7 +633,7 @@ export default {
           }).catch(function (error) {
             console.log('post account info error:')
             console.log(error.response)
-            _this.$alert(error.response.data.errmsg, '添加贷款出错')
+            _this.$alert(error.response.data.errmsg, '添加新账户出错')
           })
         } else {
           console.log('add account Submit error')
@@ -883,6 +928,55 @@ export default {
       }).catch(function (error) {
         console.log('delete customer_has_account error: ' + error)
         _this.$alert(error, '删除账户所有者出错')
+      })
+    },
+    addAccountOwnerSubmit: function () {
+      let _this = this
+      console.log('add account owner submit')
+
+      this.$refs.addAccountOwnerForm.validate((valid) => {
+        if (valid) {
+          console.log('addAccountOwnerForm is validated, send the request')
+          this.addAccountOwnerForm.account_account  =this.accTableData[this.openAccIndex].account_id
+          this.addAccountOwnerForm.acc_type  =this.accTableData[this.openAccIndex].account_type
+          this.addAccountOwnerForm.belong_branch  =this.accTableData[this.openAccIndex].branch_branch_name
+          console.log('addAccountOwnerForm = ', this.addAccountOwnerForm)
+          axios.post('http://localhost:8000/api/cusacc/', this.addAccountOwnerForm, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }).then(function (response) {
+            console.log('add new account owner suuccessfully:')
+            console.log(response.data)
+            // 更新 customer table
+            let __this = _this
+            axios.get('http://localhost:8000/api/account/', {
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              params: {
+                'account_id': _this.accTableData[_this.openAccIndex].account_id
+              }
+            }).then(function (response) {
+              console.log('get customer table:')
+              console.log(response.data)
+              __this.cusTableData = response.data // note
+              console.log('cusTableData.length = ', __this.cusTableData.length)
+            }).catch(function (error) {
+              console.log('get customers info error:')
+              console.log(error.response)
+            })
+            _this.$message('添加新账户成功')
+          }).catch(function (error) {
+            console.log('post account info error:')
+            console.log(error.response)
+            _this.$alert(error.response.data, '添加账户所有者出错')
+          })
+        } else {
+          console.log('add account owner Submit error')
+          this.$alert('请按照输入框下的提示输入正确的信息', '添加新账户所有者出错')
+          return false
+        }
       })
     }
   },

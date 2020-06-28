@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from bank.models import Branch, Department, Staff, Customer, Account, CheckingAccount, SavingsAccount, CustomerHasAccount, Loan, CustomerHasLoan, PayForLoan
-from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, CheckingAccountSerializer, SavingsAccountSerializer, LoanSerializer, PayForLoanSerializer
+from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, CheckingAccountSerializer, SavingsAccountSerializer, CustomerHasAccountSerializer, LoanSerializer, PayForLoanSerializer
 from django.http import Http404
 from rest_framework.views import APIView
 
@@ -398,7 +398,7 @@ def checkaccount_list(request):
         return resp
 
 
-@api_view(['PUT', 'DELETE'])
+@api_view(['PUT', 'POST', 'DELETE'])
 def customerhasaccount_list(request):
     if request.method == 'PUT':
         print('--------------------------------------customerhasaccoun received PUT method--------------------------------------')
@@ -410,6 +410,24 @@ def customerhasaccount_list(request):
         resp = Response(ret_val)
         
         print('--------------------------------------customerhasaccoun over PUT method--------------------------------------')
+        return resp
+    
+    elif request.method == 'POST':
+        print('--------------------------------------customerhasaccoun received POST method--------------------------------------')
+        print('request.data:')
+        print(request.data)
+
+        serializer = CustomerHasAccountSerializer(data=request.data)
+        if serializer.is_valid():
+            print('valid')
+            serializer.save()
+            resp = Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            print('not valid, errors: ')
+            print(str(serializer.errors))
+            resp = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        print('--------------------------------------customerhasaccoun over POST method--------------------------------------')
         return resp
     
     elif request.method == 'DELETE':
