@@ -38,15 +38,15 @@
             <template slot="title">管理</template>
             <el-menu-item index="branch">
               <i class="el-icon-school"></i>
-              <span slot="title">支行管理</span>
+              <span slot="title">查看支行</span>
             </el-menu-item>
             <el-menu-item index="dept">
               <i class="el-icon-suitcase-1"></i>
-              <span slot="title">部门管理</span>
+              <span slot="title">查看部门</span>
             </el-menu-item>
             <el-menu-item index="staff">
               <i class="el-icon-bank-card"></i>
-              <span slot="title">员工管理</span>
+              <span slot="title">查看员工</span>
             </el-menu-item>
             <el-menu-item index="customer">
               <i class="el-icon-s-custom"></i>

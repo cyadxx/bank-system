@@ -937,9 +937,9 @@ export default {
       this.$refs.addAccountOwnerForm.validate((valid) => {
         if (valid) {
           console.log('addAccountOwnerForm is validated, send the request')
-          this.addAccountOwnerForm.account_account  =this.accTableData[this.openAccIndex].account_id
-          this.addAccountOwnerForm.acc_type  =this.accTableData[this.openAccIndex].account_type
-          this.addAccountOwnerForm.belong_branch  =this.accTableData[this.openAccIndex].branch_branch_name
+          this.addAccountOwnerForm.account_account = this.accTableData[this.openAccIndex].account_id
+          this.addAccountOwnerForm.acc_type = this.accTableData[this.openAccIndex].account_type
+          this.addAccountOwnerForm.belong_branch = this.accTableData[this.openAccIndex].branch_branch_name
           console.log('addAccountOwnerForm = ', this.addAccountOwnerForm)
           axios.post('http://localhost:8000/api/cusacc/', this.addAccountOwnerForm, {
             headers: {
