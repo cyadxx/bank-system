@@ -1,12 +1,13 @@
 import django
+from datetime import datetime
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from bank.models import Branch, Department, Staff, Customer, Account, CheckingAccount, SavingsAccount, CustomerHasAccount, Loan, CustomerHasLoan, PayForLoan
-from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, CheckingAccountSerializer, SavingsAccountSerializer, CustomerHasAccountSerializer, LoanSerializer, PayForLoanSerializer
 from django.http import Http404
 from rest_framework.views import APIView
+from bank.models import Branch, Department, Staff, Customer, Account, CheckingAccount, SavingsAccount, CustomerHasAccount, Loan, CustomerHasLoan, PayForLoan
+from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, CheckingAccountSerializer, SavingsAccountSerializer, CustomerHasAccountSerializer, LoanSerializer, PayForLoanSerializer
 
 from django.http import HttpResponse
 import json
@@ -214,11 +215,18 @@ def account_list(request):
     """
     if request.method == 'GET':
         print('--------------------------------------account received GET method--------------------------------------')
+        print('len params = ' + str(len(request.query_params.dict())))
+        print('request.query_params = ' + str(request.query_params))
+        print('customer_id_list[] = ' + str(request.query_params.getlist('customer_id_list[]')))
+        print('request.query_params.dict() = ' + str(request.query_params.dict()))
         if len(request.query_params.dict()) == 0:
+            print('param length = 0')
             accounts = Account.objects.all()
             serializer = AccountSerializer(accounts, many=True)
             resp = Response(serializer.data)
-        else:   # 有参数，参数是 {'account_id': row.account_id}，返回该账户的所有者
+
+        elif len(request.query_params.dict()) == 1: # 有参数，参数是 {'account_id': row.account_id}，返回该账户的所有者
+            print('param length = 1')
             account_id =request.query_params.dict()['account_id']
             acc = Account.objects.get(account_id=account_id)
             cus = acc.account_owner.all()
@@ -226,6 +234,47 @@ def account_list(request):
             for i in range(len(cus)):
                 serializer.data[i]['last_visit'] = cus[i].customerhasaccount_set.get(account_account=account_id).last_visit
             resp = Response(serializer.data)
+        
+        elif len(request.query_params.dict()) >= 9:     # account 的查询功能，customer 列表为空则是 9 否则是 10
+            print('param length = ' + str(len(request.query_params.dict())))
+            query_dict = request.query_params.dict()
+
+            opendate_range = request.query_params.getlist('account_opendate_range[]')
+            if len(opendate_range) == 0:
+                start = datetime.strptime('1500-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
+                end = datetime.strptime('2500-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
+            else:
+                start = datetime.strptime(opendate_range[0], '%Y-%m-%d %H:%M:%S')
+                end = datetime.strptime(opendate_range[1], '%Y-%m-%d %H:%M:%S')
+            
+            print(start)
+            print(end)
+
+            selected_acc = Account.objects.filter(
+                account_id__startswith=query_dict['account_id']
+            ).filter(
+                account_balance__gte=float(query_dict['account_balance_range'])
+            ).filter(
+                account_opendate__range=(start, end)
+            ).filter(
+                branch_branch_name__branch_name__istartswith=query_dict['branch_branch_name']
+            ).filter(
+                staff_staff__staff_id__istartswith=query_dict['staff_staff']
+            ).filter(
+                account_type__startswith=query_dict['account_type']
+            )
+            # 要根据不同账户类型分别 filter
+            if query_dict['account_type'] == 'checkaccount':
+                selected_acc = selected_acc.filter(checkingaccount__credit_line__gte=float(query_dict['credit_line']))
+            elif query_dict['account_type'] == 'saveaccount':
+                selected_acc = selected_acc.filter(
+                    savingsaccount__interset_rate__lte=float(query_dict['interset_rate'])
+                ).filter(
+                    savingsaccount__currency_type__istartswith=query_dict['currency_type']
+                )
+            serializer = AccountSerializer(selected_acc, many=True)
+            resp = Response(serializer.data)
+
         print('--------------------------------------account over GET method--------------------------------------')
         return resp
 

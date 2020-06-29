@@ -1,6 +1,99 @@
 <template>
   <div>
     <el-row>
+      <h3>查询</h3>
+    </el-row>
+    <el-row>
+      <el-form :inline="true" :model="queryAccountForm" :rules="queryAccountRules" ref="queryAccountForm" label-width="95px" class="demo-form-inline">
+        <el-row>
+          <el-form-item label="账户类型" prop="account_type">
+            <el-select v-model="queryAccountForm.account_type" placeholder="请选择账户类型">
+              <el-option
+                v-for="item in typeOptions"
+                :key="item.type"
+                :label="item.type_name"
+                :value="item.type">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="利率" prop="interset_rate" v-if="!queryFormIntersetRateDisabled">
+            <el-input type="number" v-model.number="queryAccountForm.interset_rate"
+              placeholder="利率" :disabled="queryFormIntersetRateDisabled">
+            </el-input>
+          </el-form-item>
+          <el-form-item label="货币类型" prop="currency_type" v-if="!queryFormCurrencyTypeDisabled">
+            <el-input v-model="queryAccountForm.currency_type" placeholder="货币类型"
+              :disabled="queryFormCurrencyTypeDisabled">
+            </el-input>
+          </el-form-item>
+          <el-form-item label="透支额" prop="credit_line" v-if="!queryFormCreditLineDisabled">
+            <el-input type="number" v-model.number="queryAccountForm.credit_line"
+              placeholder="透支额" :disabled="queryFormCreditLineDisabled">
+            </el-input>
+          </el-form-item>
+        </el-row>
+        <el-row>
+          <el-form-item label="账户号" prop="account_id">
+            <el-input v-model="queryAccountForm.account_id" placeholder="账户号"></el-input>
+          </el-form-item>
+          <el-form-item label="账户余额" prop="account_balance_range">
+            <el-input type="number" v-model.number="queryAccountForm.account_balance_range" placeholder="账户余额"></el-input>
+          </el-form-item>
+          <el-form-item label="开户日期" prop="account_opendate_range">
+            <el-date-picker
+              v-model="queryAccountForm.account_opendate_range"
+              type="datetimerange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="yyyy-MM-dd HH:mm:ss"
+              :picker-options="pickerOptions">
+            </el-date-picker>
+          </el-form-item>
+          <el-form-item label="所属支行" prop="branch_branch_name">
+            <el-select v-model="queryAccountForm.branch_branch_name" placeholder="请选择所属支行" @change="branchChangedInQueryForm">
+              <el-option
+                v-for="item in brOptions"
+                :key="item.branch_name"
+                :label="item.branch_name"
+                :value="item.branch_name">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="负责员工" prop="staff_staff">
+            <el-select v-model="queryAccountForm.staff_staff" :disabled="staffDisInQueryForm" :placeholder="staffDisInQueryForm ? '请先选择支行' : '请选择负责员工'">
+              <el-option
+                v-for="item in staffOptionsInQueryForm"
+                :key="item.staff_id"
+                :label="item.staff_name"
+                :value="item.staff_id">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="账户所有者" prop="customer_id_list">
+            <el-select v-model="queryAccountForm.customer_id_list" multiple placeholder="请选择开户客户">
+              <el-option
+                v-for="item in customerOptions"
+                :key="item.id"
+                :label="item.custom_name"
+                :value="item.id">
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-row>
+        <el-form-item class="button-right">
+          <el-button type="primary" size="medium" @click="queryAccSubmit">查询</el-button>
+        </el-form-item>
+        <el-form-item class="button-right">
+          <el-button size="medium" @click="clearQueryForm">清空</el-button>
+        </el-form-item>
+      </el-form>
+    </el-row>
+
+    <el-row>
+      <h3>账户列表</h3>
+    </el-row>
+    <el-row>
       <el-table
         :data="accTableData"
         style="width: 100%">
@@ -51,6 +144,7 @@
         </el-table-column>
       </el-table>
     </el-row>
+
     <el-row><h3>添加新账户</h3></el-row>
     <el-row>
       <el-form :inline="true" :model="addAccountForm" :rules="addAccountRules" ref="addAccountForm" label-width="95px" class="demo-form-inline">
@@ -340,9 +434,11 @@ export default {
       accTableData: [],
       staffDis: true,
       staffDisInEditForm: true,
+      staffDisInQueryForm: true,
       brOptions: [],
       staffOptions: [],
       staffOptionsInEditForm: [],
+      staffOptionsInQueryForm: [],
       customerOptions: [],
       accDetailDialogFormVisible: false,
       accEditDialogFormVisible: false,
@@ -420,6 +516,39 @@ export default {
         ],
         credit_line: [
           { required: !this.creditLineDisabled, message: '请输入透支额', trigger: 'change' },
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ]
+      },
+      queryAccountForm: {
+        account_id: '',
+        account_balance_range: '', // 返回比该值大的账户余额的账户
+        account_type: '',
+        account_opendate_range: '',
+        branch_branch_name: '',
+        staff_staff: '',
+        customer_id_list: [], // 新增贷款表单中选择的开户客户。可以用 queryAccountForm.splice(6, 1) 删除
+        interset_rate: '',
+        currency_type: '',
+        credit_line: ''
+      },
+      queryAccountRules: {
+        account_id: [
+          { min: 1, max: 6, message: '长度在 1 到 6 个字符', trigger: 'change' }
+        ],
+        account_balance_range: [
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ],
+        branch_branch_name: [
+          { validator: this.validateChooseBrInQueryForm, trigger: 'change' }
+        ],
+        interset_rate: [
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' },
+          { validator: this.validateInterestRate, trigger: 'change' }
+        ],
+        currency_type: [
+          { min: 1, max: 10, message: '长度在 1 到 10 个字符', trigger: 'change' }
+        ],
+        credit_line: [
           { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
         ]
       },
@@ -513,6 +642,31 @@ export default {
         return false
       } else {
         print('creditLineDisabled error!')
+        return true
+      }
+    },
+    queryFormIntersetRateDisabled: function () {
+      if ((this.queryAccountForm.account_type === '') || (this.queryAccountForm.account_type === 'checkaccount')) {
+        // 未选择账户类型或账户类型是支票账户时禁用
+        return true
+      } else if (this.queryAccountForm.account_type === 'saveaccount') {
+        return false
+      } else {
+        print('queryFormIntersetRateDisabled error!')
+        return true
+      }
+    },
+    queryFormCurrencyTypeDisabled: function () {
+      return this.queryFormIntersetRateDisabled
+    },
+    queryFormCreditLineDisabled: function () {
+      if ((this.queryAccountForm.account_type === '') || (this.queryAccountForm.account_type === 'saveaccount')) {
+        // 未选择账户类型或账户类型是支票账户时禁用
+        return true
+      } else if (this.queryAccountForm.account_type === 'checkaccount') {
+        return false
+      } else {
+        print('queryFormCreditLineDisabled error!')
         return true
       }
     }
@@ -612,6 +766,10 @@ export default {
       console.log('br change')
       this.editAccountForm.staff_staff = '' // 每次修改支行时将之前选择的员工清除
     },
+    branchChangedInQueryForm: function () {
+      console.log('br change')
+      this.queryAccountForm.staff_staff = '' // 每次修改支行时将之前选择的员工清除
+    },
     // 开户
     addAccountSubmit: function () {
       let _this = this
@@ -685,6 +843,29 @@ export default {
           console.log(error.response)
         })
         this.staffDisInEditForm = false
+      }
+      callback()
+    },
+    validateChooseBrInQueryForm: function (rule, value, callback) {
+      let _this = this
+      console.log('validate choose br in query form:')
+      if (value !== '') {
+        axios.get('http://localhost:8000/api/staff/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'branch_name': this.queryAccountForm.branch_branch_name
+          }
+        }).then(function (response) {
+          console.log('update staff selector in query form:')
+          console.log(response.data)
+          _this.staffOptionsInQueryForm = response.data
+        }).catch(function (error) {
+          console.log('get staff info error:')
+          console.log(error.response)
+        })
+        this.staffDisInQueryForm = false
       }
       callback()
     },
@@ -978,6 +1159,50 @@ export default {
           return false
         }
       })
+    },
+    queryAccSubmit: function () {
+      console.log('queryAccSubmit')
+      console.log('queryAccountForm = ', this.queryAccountForm)
+      let _this = this
+      this.$refs.queryAccountForm.validate((valid) => {
+        if (valid) {
+          console.log('query info is valid, perform the query')
+          axios.get('http://localhost:8000/api/account/', {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            params: this.queryAccountForm
+          }).then(function (response) {
+            console.log('query accounts according to the filter info:')
+            console.log(response.data)
+            _this.accTableData = response.data
+            console.log('_this.tableData = ', _this.accTableData)
+          }).catch(function (error) {
+            console.log('query account info error')
+            console.log(error.response)
+            _this.$alert(error.response, '查询账户信息出错')
+          })
+        } else {
+          console.log('queryAccSubmit error')
+          this.$alert('请按照提示输入正确的信息', '按条件查询账户出错')
+          return false
+        }
+      })
+    },
+    clearQueryForm: function () {
+      console.log('clear account query form')
+      this.queryAccountForm = {
+        account_id: '',
+        account_balance_range: 0,
+        account_type: '',
+        account_opendate_range: '',
+        branch_branch_name: '',
+        staff_staff: '',
+        customer_id_list: [], // 新增贷款表单中选择的开户客户。可以用 queryAccountForm.splice(6, 1) 删除
+        interset_rate: 1,
+        currency_type: '',
+        credit_line: 0
+      }
     }
   },
   mounted: function () {
