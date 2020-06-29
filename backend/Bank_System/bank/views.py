@@ -235,7 +235,7 @@ def account_list(request):
                 serializer.data[i]['last_visit'] = cus[i].customerhasaccount_set.get(account_account=account_id).last_visit
             resp = Response(serializer.data)
         
-        elif len(request.query_params.dict()) >= 9:     # account 的查询功能，customer 列表为空则是 9 否则是 10
+        elif len(request.query_params.dict()) >= 9: # account 的查询功能，customer 列表为空则是 9 否则是 10
             print('param length = ' + str(len(request.query_params.dict())))
             query_dict = request.query_params.dict()
 
@@ -534,13 +534,42 @@ def loan_list(request):
             loans = Loan.objects.all()
             serializer = LoanSerializer(loans, many=True)
             resp = Response(serializer.data)
-        else:   # 有参数，参数是 {'loan_id': this.row.loan_id}，返回该贷款的所有者
+        
+        elif len(request.query_params.dict()) == 1: # 有一个参数，参数是 {'loan_id': this.row.loan_id}，返回该贷款的所有者
             loan_id = request.query_params.dict()['loan_id']    # string
             # manytomanyfield
             loan = Loan.objects.get(loan_id=loan_id)
             cus = loan.loan_owner.all()
             serializer = CustomerSerializer(cus, many=True)
             resp = Response(serializer.data)
+        
+        elif len(request.query_params.dict()) >= 5: # loan 的查询功能，customer 列表为空则是 5 否则是 6
+            print('len params = ' + str(len(request.query_params.dict())))
+            print('request.query_params = ' + str(request.query_params))
+            print('customer_id_list[] = ' + str(request.query_params.getlist('customer_id_list[]')))
+            print('request.query_params.dict() = ' + str(request.query_params.dict()))
+
+            query_dict = request.query_params.dict()
+            selected_loans = Loan.objects.filter(
+                loan_id__istartswith=query_dict['loan_id']
+            ).filter(
+                loan_money__range=(query_dict['loan_money_low'], query_dict['loan_money_up'])
+            ).filter(
+                loan_state__startswith=query_dict['loan_state']
+            ).filter(
+                branch_branch_name__branch_name__istartswith=query_dict['branch_branch_name']
+            ).filter(
+                staff_staff__staff_id__istartswith=query_dict['staff_staff']
+            )
+            # 根据客户 filter
+            customer_id_list = request.query_params.getlist('customer_id_list[]')
+            customer_id_list = list(map(int, customer_id_list))
+            if len(customer_id_list) > 0:
+                selected_loans = selected_loans.filter(loan_owner__id__in=customer_id_list).distinct()
+            
+            serializer = LoanSerializer(selected_loans, many=True)
+            resp = Response(serializer.data)
+
         print('--------------------------------------loan over POST method--------------------------------------')
         return resp
 

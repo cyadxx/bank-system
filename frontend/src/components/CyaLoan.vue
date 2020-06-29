@@ -1,6 +1,74 @@
 <template>
   <div>
     <el-row>
+      <h3>查询</h3>
+    </el-row>
+    <el-row>
+      <el-form :inline="true" :model="queryLoanForm" :rules="queryLoanRules" ref="queryLoanForm" label-width="96px" class="demo-form-inline">
+        <el-form-item label="贷款号" prop="loan_id">
+          <el-input v-model="queryLoanForm.loan_id" placeholder="贷款号"></el-input>
+        </el-form-item>
+        <el-form-item label="贷款金额下界" prop="loan_money_low">
+          <el-input type="number" v-model.number="queryLoanForm.loan_money_low" placeholder="贷款金额下界"></el-input>
+        </el-form-item>
+        <el-form-item label="贷款金额上界" prop="loan_money_up">
+          <el-input type="number" v-model.number="queryLoanForm.loan_money_up" placeholder="贷款金额上界"></el-input>
+        </el-form-item>
+        <el-form-item label="贷款状态" prop="loan_state">
+          <el-select v-model="queryLoanForm.loan_state" placeholder="请选择贷款状态">
+            <el-option
+              v-for="item in loanStateOptions"
+              :key="item.type"
+              :label="item.type_name"
+              :value="item.type">
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="贷款客户" prop="customer_id_list">
+          <el-select v-model="queryLoanForm.customer_id_list" multiple placeholder="请选择贷款客户">
+            <el-option
+              v-for="item in customerOptions"
+              :key="item.id"
+              :label="item.custom_name"
+              :value="item.id">
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="所属支行" prop="branch_branch_name">
+          <el-select v-model="queryLoanForm.branch_branch_name" placeholder="请选择所属支行" @change="branchChangedInQueryForm">
+            <el-option
+              v-for="item in brOptions"
+              :key="item.branch_name"
+              :label="item.branch_name"
+              :value="item.branch_name">
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="负责员工" prop="staff_staff">
+          <el-select v-model="queryLoanForm.staff_staff" :disabled="staffDisInQueryForm" :placeholder="staffDisInQueryForm ? '请先选择支行' : '请选择负责员工'">
+            <el-option
+              v-for="item in staffOptionsInQueryForm"
+              :key="item.staff_id"
+              :label="item.staff_name"
+              :value="item.staff_id">
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-row>
+          <el-form-item class="button-right">
+            <el-button type="primary" size="medium" @click="queryLoanSubmit">查询</el-button>
+          </el-form-item>
+          <el-form-item class="button-right">
+            <el-button size="medium" @click="clearQueryForm">清空</el-button>
+          </el-form-item>
+        </el-row>
+      </el-form>
+    </el-row>
+
+    <el-row>
+      <h3>贷款列表</h3>
+    </el-row>
+    <el-row>
       <el-table
         :data="tableData"
         style="width: 100%">
@@ -210,19 +278,31 @@ export default {
       tableData: [],
       cusTableData: [],
       payTableData: [],
-      openLoanIndex: -1, // 当前被打开查看付款记录的贷款在 tableData 中的 index
+      openLoanIndex: 0, // 当前被打开查看付款记录的贷款在 tableData 中的 index
       payButtonDisable: false,
       customerDialogFormVisible: false,
       payDialogFormVisible: false,
       staffDis: true,
+      staffDisInQueryForm: true,
       brOptions: [],
       staffOptions: [],
+      staffOptionsInQueryForm: [],
       customerOptions: [],
       pickerOptions: {
         disabledDate: function (time) {
           return time.getTime() > Date.now()
         }
       },
+      loanStateOptions: [{
+        type: '0',
+        type_name: '未发放'
+      }, {
+        type: '1',
+        type_name: '发放中'
+      }, {
+        type: '2',
+        type_name: '已发放完'
+      }],
       addLoanForm: {
         loan_id: '',
         loan_money: 1000,
@@ -249,6 +329,29 @@ export default {
         ],
         customer_id_list: [
           { required: true, message: '请选则贷款客户', trigger: 'change' }
+        ]
+      },
+      queryLoanForm: {
+        loan_id: '',
+        loan_money_up: '',
+        loan_money_low: '',
+        loan_state: '',
+        staff_staff: '',
+        branch_branch_name: '',
+        customer_id_list: [] // 新增贷款表单中选择的贷款客户。可以用 addLoanForm.splice(5, 1) 删除
+      },
+      queryLoanRules: {
+        loan_id: [
+          { min: 0, max: 10, message: '长度最长 10 个字符', trigger: 'change' }
+        ],
+        loan_money_low: [
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ],
+        loan_money_up: [
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ],
+        branch_branch_name: [
+          { validator: this.validateChooseBrInQueryForm, trigger: 'change' }
         ]
       },
       addPayForm: {
@@ -315,16 +418,13 @@ export default {
           'Content-Type': 'application/json'
         }
       }).then(function (response) {
+        console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         console.log(response.data)
         console.log('type:', typeof (response.data))
         _this.tableData = response.data
-        if (_this.tableData[_this.openLoanIndex].loan_state === '2') {
-          console.log('payButtonDisable = true')
-          _this.payButtonDisable = true
-        }
       }).catch(function (error) {
         console.log('get loan info error:')
-        console.log(error.response)
+        console.log(error)
       })
     },
     getPayInfo: function (_this) {
@@ -381,6 +481,35 @@ export default {
         }
       })
     },
+    queryLoanSubmit: function () {
+      console.log('queryLoanSubmit')
+      console.log('queryLoanForm = ', this.queryLoanForm)
+      let _this = this
+      this.$refs.queryLoanForm.validate((valid) => {
+        if (valid) {
+          console.log('query info is valid, perform the query')
+          axios.get('http://localhost:8000/api/loan/', {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            params: this.queryLoanForm
+          }).then(function (response) {
+            console.log('query loans according to the filter info:')
+            console.log(response.data)
+            _this.tableData = response.data
+            console.log('_this.tableData = ', _this.tableData)
+          }).catch(function (error) {
+            console.log('query loan info error')
+            console.log(error.response)
+            _this.$alert(error.response, '查询贷款出错')
+          })
+        } else {
+          console.log('query loan submit error')
+          this.$alert('请按照提示输入正确的信息', '按条件查询贷款出错')
+          return false
+        }
+      })
+    },
     validateChooseBr: function (rule, value, callback) {
       let _this = this
       console.log('validate choose br')
@@ -401,6 +530,29 @@ export default {
           console.log(error)
         })
         this.staffDis = false
+      }
+      callback()
+    },
+    validateChooseBrInQueryForm: function (rule, value, callback) {
+      let _this = this
+      console.log('validate choose br in query form')
+      if (value !== '') {
+        axios.get('http://localhost:8000/api/staff/', {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'branch_name': this.queryLoanForm.branch_branch_name
+          }
+        }).then(function (response) {
+          console.log('update staff selector:')
+          console.log(response.data)
+          _this.staffOptionsInQueryForm = response.data
+        }).catch(function (error) {
+          console.log('get staff info error:')
+          console.log(error)
+        })
+        this.staffDisInQueryForm = false
       }
       callback()
     },
@@ -430,6 +582,10 @@ export default {
     branchChanged: function () {
       console.log('br change')
       this.addLoanForm.staff_staff = '' // 每次修改支行时将之前选择的员工清除
+    },
+    branchChangedInQueryForm: function () {
+      console.log('br change')
+      this.queryLoanForm.staff_staff = '' // 每次修改支行时将之前选择的员工清除
     },
     // 查看一个贷款对应的客户
     handleViewCus: function (index, row) {
@@ -526,6 +682,18 @@ export default {
         console.log('delete loan error: ' + error)
         _this.$alert('删除贷款信息出错', '删除出错')
       })
+    },
+    clearQueryForm: function () {
+      console.log('clear loan query form')
+      this.queryLoanForm = {
+        loan_id: '',
+        loan_money_low: 0,
+        loan_money_up: 999999999,
+        loan_state: '',
+        staff_staff: '',
+        branch_branch_name: '',
+        customer_id_list: []
+      }
     }
   }
 }
