@@ -4,7 +4,7 @@
       <h3>查询</h3>
     </el-row>
     <el-row>
-      <el-form :inline="true" :model="queryAccountForm" :rules="queryAccountRules" ref="queryAccountForm" label-width="95px" class="demo-form-inline">
+      <el-form :inline="true" :model="queryAccountForm" :rules="queryAccountRules" ref="queryAccountForm" label-width="96px" class="demo-form-inline">
         <el-row>
           <el-form-item label="账户类型" prop="account_type">
             <el-select v-model="queryAccountForm.account_type" placeholder="请选择账户类型">
@@ -36,19 +36,21 @@
           <el-form-item label="账户号" prop="account_id">
             <el-input v-model="queryAccountForm.account_id" placeholder="账户号"></el-input>
           </el-form-item>
-          <el-form-item label="账户余额" prop="account_balance_range">
-            <el-input type="number" v-model.number="queryAccountForm.account_balance_range" placeholder="账户余额"></el-input>
+          <el-form-item label="账户余额下界" prop="account_balance_low">
+            <el-input type="number" v-model.number="queryAccountForm.account_balance_low" placeholder="账户余额"></el-input>
           </el-form-item>
-          <el-form-item label="开户日期" prop="account_opendate_range">
-            <el-date-picker
-              v-model="queryAccountForm.account_opendate_range"
-              type="datetimerange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              value-format="yyyy-MM-dd HH:mm:ss"
-              :picker-options="pickerOptions">
-            </el-date-picker>
+          <el-form-item label="账户余额上界" prop="account_balance_up">
+            <el-input type="number" v-model.number="queryAccountForm.account_balance_up" placeholder="账户余额"></el-input>
+          </el-form-item>
+          <el-form-item label="账户所有者" prop="customer_id_list">
+            <el-select v-model="queryAccountForm.customer_id_list" multiple placeholder="请选择开户客户">
+              <el-option
+                v-for="item in customerOptions"
+                :key="item.id"
+                :label="item.custom_name"
+                :value="item.id">
+              </el-option>
+            </el-select>
           </el-form-item>
           <el-form-item label="所属支行" prop="branch_branch_name">
             <el-select v-model="queryAccountForm.branch_branch_name" placeholder="请选择所属支行" @change="branchChangedInQueryForm">
@@ -70,15 +72,16 @@
               </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item label="账户所有者" prop="customer_id_list">
-            <el-select v-model="queryAccountForm.customer_id_list" multiple placeholder="请选择开户客户">
-              <el-option
-                v-for="item in customerOptions"
-                :key="item.id"
-                :label="item.custom_name"
-                :value="item.id">
-              </el-option>
-            </el-select>
+          <el-form-item label="开户日期" prop="account_opendate_range">
+            <el-date-picker
+              v-model="queryAccountForm.account_opendate_range"
+              type="datetimerange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="yyyy-MM-dd HH:mm:ss"
+              :picker-options="pickerOptions">
+            </el-date-picker>
           </el-form-item>
         </el-row>
         <el-form-item class="button-right">
@@ -521,7 +524,8 @@ export default {
       },
       queryAccountForm: {
         account_id: '',
-        account_balance_range: '', // 返回比该值大的账户余额的账户
+        account_balance_low: '', // 返回比该值大的账户余额的账户
+        account_balance_up: '',
         account_type: '',
         account_opendate_range: '',
         branch_branch_name: '',
@@ -535,7 +539,10 @@ export default {
         account_id: [
           { min: 1, max: 6, message: '长度在 1 到 6 个字符', trigger: 'change' }
         ],
-        account_balance_range: [
+        account_balance_low: [
+          { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
+        ],
+        account_balance_up: [
           { type: 'number', message: '请不要输入除数字外的字符', trigger: 'change' }
         ],
         branch_branch_name: [
@@ -1193,7 +1200,8 @@ export default {
       console.log('clear account query form')
       this.queryAccountForm = {
         account_id: '',
-        account_balance_range: 0,
+        account_balance_low: 0,
+        account_balance_up: 999999999,
         account_type: '',
         account_opendate_range: '',
         branch_branch_name: '',

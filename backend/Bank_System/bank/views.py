@@ -250,7 +250,7 @@ def account_list(request):
             selected_acc = Account.objects.filter(
                 account_id__startswith=query_dict['account_id']
             ).filter(
-                account_balance__gte=float(query_dict['account_balance_range'])
+                account_balance__range=(float(query_dict['account_balance_low']), float(query_dict['account_balance_up']))
             ).filter(
                 account_opendate__range=(start, end)
             ).filter(
@@ -274,7 +274,6 @@ def account_list(request):
             customer_id_list = list(map(int, customer_id_list))
             if len(customer_id_list) > 0:
                 selected_acc = selected_acc.filter(account_owner__id__in=customer_id_list).distinct()
-            print('ok!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             serializer = AccountSerializer(selected_acc, many=True)
             resp = Response(serializer.data)
 
@@ -553,7 +552,7 @@ def loan_list(request):
             selected_loans = Loan.objects.filter(
                 loan_id__istartswith=query_dict['loan_id']
             ).filter(
-                loan_money__range=(query_dict['loan_money_low'], query_dict['loan_money_up'])
+                loan_money__range=(float(query_dict['loan_money_low']), float(query_dict['loan_money_up']))
             ).filter(
                 loan_state__startswith=query_dict['loan_state']
             ).filter(
