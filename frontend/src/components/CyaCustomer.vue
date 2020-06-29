@@ -361,7 +361,7 @@ export default {
             console.log('_this.tableData = ', _this.tableData)
           }).catch(function (error) {
             console.log('query customer info error')
-            _this.$alert(error, '查询账户信息出错')
+            _this.$alert(error, '查询客户信息出错')
           })
         } else {
           console.log('queryCusSubmit error')
