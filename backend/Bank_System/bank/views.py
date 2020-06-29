@@ -246,9 +246,6 @@ def account_list(request):
             else:
                 start = datetime.strptime(opendate_range[0], '%Y-%m-%d %H:%M:%S')
                 end = datetime.strptime(opendate_range[1], '%Y-%m-%d %H:%M:%S')
-            
-            print(start)
-            print(end)
 
             selected_acc = Account.objects.filter(
                 account_id__startswith=query_dict['account_id']
@@ -272,6 +269,12 @@ def account_list(request):
                 ).filter(
                     savingsaccount__currency_type__istartswith=query_dict['currency_type']
                 )
+            # 根据客户查询
+            customer_id_list = request.query_params.getlist('customer_id_list[]')
+            customer_id_list = list(map(int, customer_id_list))
+            if len(customer_id_list) > 0:
+                selected_acc = selected_acc.filter(account_owner__id__in=customer_id_list).distinct()
+            print('ok!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             serializer = AccountSerializer(selected_acc, many=True)
             resp = Response(serializer.data)
 
