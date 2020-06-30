@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.http import Http404
 from rest_framework.views import APIView
+from django.db.models import Avg, Max, Min, Sum
 from bank.models import Branch, Department, Staff, Customer, Account, CheckingAccount, SavingsAccount, CustomerHasAccount, Loan, CustomerHasLoan, PayForLoan
 from bank.serializers import BranchSerializer, DepartmentSerializer, StaffSerializer, CustomerSerializer, AccountSerializer, CheckingAccountSerializer, SavingsAccountSerializer, CustomerHasAccountSerializer, LoanSerializer, PayForLoanSerializer
 
@@ -120,7 +121,7 @@ def customer_list(request):
         else:   # 按条件查询客户
             print('has params, request = ')
             print(request.query_params.dict())
-            # TODO
+            
             query_dict = request.query_params.dict()
             selected_customers = Customer.objects.filter(
                 custom_id__startswith=query_dict['custom_id']
@@ -227,7 +228,7 @@ def account_list(request):
 
         elif len(request.query_params.dict()) == 1: # 有参数，参数是 {'account_id': row.account_id}，返回该账户的所有者
             print('param length = 1')
-            account_id =request.query_params.dict()['account_id']
+            account_id = request.query_params.dict()['account_id']
             acc = Account.objects.get(account_id=account_id)
             cus = acc.account_owner.all()
             serializer = CustomerSerializer(cus, many=True)
@@ -276,6 +277,73 @@ def account_list(request):
                 selected_acc = selected_acc.filter(account_owner__id__in=customer_id_list).distinct()
             serializer = AccountSerializer(selected_acc, many=True)
             resp = Response(serializer.data)
+
+        elif len(request.query_params.dict()) == 2: # 业务统计模块，{'account_type': 'saveaccount / checkaccount', 'time_type': 'year / quarter / month'}
+            account_type = request.query_params.dict()['account_type']
+            time_type = request.query_params.dict()['time_type']
+            print('request.query_params.dict() = ' + str(request.query_params.dict()))
+
+            resp_data = []
+            selected_acc_for_acctype = Account.objects.filter(account_type=account_type)    # 根据账户类型筛选
+            if time_type == 'year':
+                year_start = 2015
+                year_end = 2020
+                for i in range(year_start, year_end + 1):
+                    selected_acc = selected_acc_for_acctype.filter(account_opendate__year=i)    # 选出每一年的
+                    dic = { 'year': str(i) }
+                    print('year = ' + str(i))
+                    for br in Branch.objects.all():
+                        print('br.branch_name = ' + br.branch_name + 'selected_acc = ' + str(selected_acc.filter(branch_branch_name__branch_name=br.branch_name)))
+                        br_money = selected_acc.filter(branch_branch_name__branch_name=br.branch_name).aggregate(br_money=Sum('account_balance'))
+                        if br_money['br_money'] == None:
+                            dic[br.branch_name] = 0
+                        else:
+                            dic[br.branch_name] = br_money['br_money']
+                    resp_data.append(dic)
+                resp = Response(resp_data)
+                print('resp_data = ' + str(resp_data))
+                # filter 出每个支行的数据后再进行聚合操作，写到返回值 dict 中，返回值参照 CyaStat.vue
+                # 返回值样式：
+                #     rows: [
+                #       { '年份': '2017', '合肥支行': 32371, '南京支行': 19810, '东京支行': 0, '巴黎支行': 0, '纽约支行': 0 },
+                #       { '年份': '2018', '合肥支行': 12328, '南京支行': 4398, '东京支行': 0, '巴黎支行': 0, '纽约支行': 0 }
+                #     ]
+            elif time_type == 'quarter':
+                year_start = 2016
+                year_end = 2020
+                for i in range(year_start, year_end + 1):   # 遍历每年
+                    for j in range(1, 5):                   # 遍历每年的每个季度
+                        selected_acc = selected_acc_for_acctype.filter(account_opendate__year=i).filter(account_opendate__quarter=j) # 选出每一季度的
+                        dic = { 'quarter': str(i)+'-'+str(j) }
+                        print('quarter = ' + str(i)+'-'+str(j))
+                        for br in Branch.objects.all():
+                            print('br.branch_name = ' + br.branch_name + 'selected_acc = ' + str(selected_acc.filter(branch_branch_name__branch_name=br.branch_name)))
+                            br_money = selected_acc.filter(branch_branch_name__branch_name=br.branch_name).aggregate(br_money=Sum('account_balance'))
+                            if br_money['br_money'] == None:
+                                dic[br.branch_name] = 0
+                            else:
+                                dic[br.branch_name] = br_money['br_money']
+                        resp_data.append(dic)
+                resp = Response(resp_data)
+                print('resp_data = ' + str(resp_data))
+            elif time_type == 'month':
+                year_start = 2016
+                year_end = 2020
+                for i in range(year_start, year_end + 1):   # 遍历每年
+                    for j in range(1, 13):                   # 遍历每年的每个月
+                        selected_acc = selected_acc_for_acctype.filter(account_opendate__year=i).filter(account_opendate__month=j)
+                        dic = { 'month': str(i)+'-'+str(j) }
+                        print('month = ' + str(i)+'-'+str(j))
+                        for br in Branch.objects.all():
+                            print('br.branch_name = ' + br.branch_name + 'selected_acc = ' + str(selected_acc.filter(branch_branch_name__branch_name=br.branch_name)))
+                            br_money = selected_acc.filter(branch_branch_name__branch_name=br.branch_name).aggregate(br_money=Sum('account_balance'))
+                            if br_money['br_money'] == None:
+                                dic[br.branch_name] = 0
+                            else:
+                                dic[br.branch_name] = br_money['br_money']
+                        resp_data.append(dic)
+                resp = Response(resp_data)
+                print('resp_data = ' + str(resp_data))
 
         print('--------------------------------------account over GET method--------------------------------------')
         return resp
@@ -541,6 +609,83 @@ def loan_list(request):
             cus = loan.loan_owner.all()
             serializer = CustomerSerializer(cus, many=True)
             resp = Response(serializer.data)
+        
+        elif len(request.query_params.dict()) == 2: # 两个参数，{'func': 'stat', 'time_type': 'year/quarter/month'}
+            time_type = request.query_params.dict()['time_type']
+
+            resp_data = []
+
+            if time_type == 'year':
+                year_start = 2016
+                year_end = 2020
+                for i in range(year_start, year_end + 1):
+                    loan_paid_thisyear = []
+                    for item in list(PayForLoan.objects.values('loan_loan').annotate(Min('pay_date')).filter(pay_date__min__year=i)):
+                        loan_paid_thisyear.append(item['loan_loan'])
+                    selected_loan = Loan.objects.filter(
+                        payforloan__loan_loan__in=loan_paid_thisyear
+                    ).distinct()
+                    dic = { 'year': str(i) }
+                    print('year = ' + str(i))
+                    for br in Branch.objects.all():
+                        print('br.branch_name = ' + br.branch_name + 'selected_acc = ' + str(selected_loan.filter(branch_branch_name__branch_name=br.branch_name)))
+                        br_money = selected_loan.filter(branch_branch_name__branch_name=br.branch_name).aggregate(br_money=Sum('loan_money'))
+                        if br_money['br_money'] == None:
+                            dic[br.branch_name] = 0
+                        else:
+                            dic[br.branch_name] = br_money['br_money']
+                    resp_data.append(dic)
+                resp = Response(resp_data)
+                print('resp_data = ' + str(resp_data))
+            elif time_type == 'quarter':
+                year_start = 2016
+                year_end = 2020
+                for i in range(year_start, year_end + 1):
+                    for j in range(1, 5):
+                        loan_paid_thisyear = []
+                        for item in list(PayForLoan.objects.values('loan_loan').annotate(Min('pay_date')).filter(pay_date__min__year=i).filter(pay_date__min__quarter=j)):
+                            loan_paid_thisyear.append(item['loan_loan'])
+                        selected_loan = Loan.objects.filter(
+                            payforloan__loan_loan__in=loan_paid_thisyear
+                        ).distinct()
+                        dic = { 'quarter': str(i)+'-'+str(j) }
+                        # print('quarter = ' + str(i)+'-'+str(j))
+                        for br in Branch.objects.all():
+                            # print('br.branch_name = ' + br.branch_name + 'selected_acc = ' + str(selected_loan.filter(branch_branch_name__branch_name=br.branch_name)))
+                            br_money = selected_loan.filter(branch_branch_name__branch_name=br.branch_name).aggregate(br_money=Sum('loan_money'))
+                            if br_money['br_money'] == None:
+                                dic[br.branch_name] = 0
+                            else:
+                                dic[br.branch_name] = br_money['br_money']
+                        resp_data.append(dic)
+                resp = Response(resp_data)
+                print('resp_data = ' + str(resp_data))
+            elif time_type == 'month':
+                year_start = 2016
+                year_end = 2020
+                for i in range(year_start, year_end + 1):
+                    for j in range(1, 13):
+                        loan_paid_thisyear = []
+                        for item in list(PayForLoan.objects.values('loan_loan').annotate(Min('pay_date')).filter(pay_date__min__year=i).filter(pay_date__min__month=j)):
+                            loan_paid_thisyear.append(item['loan_loan'])
+                        selected_loan = Loan.objects.filter(
+                            payforloan__loan_loan__in=loan_paid_thisyear
+                        ).distinct()
+                        dic = { 'month': str(i)+'-'+str(j) }
+                        # print('month = ' + str(i)+'-'+str(j))
+                        for br in Branch.objects.all():
+                            # print('br.branch_name = ' + br.branch_name + 'selected_acc = ' + str(selected_loan.filter(branch_branch_name__branch_name=br.branch_name)))
+                            br_money = selected_loan.filter(branch_branch_name__branch_name=br.branch_name).aggregate(br_money=Sum('loan_money'))
+                            if br_money['br_money'] == None:
+                                dic[br.branch_name] = 0
+                            else:
+                                dic[br.branch_name] = br_money['br_money']
+                        resp_data.append(dic)
+                resp = Response(resp_data)
+                print('resp_data = ' + str(resp_data))
+            else:
+                print('[error] unknown time type')
+                resp = Response({'errmsg': 'unknown time type'}, status=status.HTTP_400_BAD_REQUEST)
         
         elif len(request.query_params.dict()) >= 5: # loan 的查询功能，customer 列表为空则是 5 否则是 6
             print('len params = ' + str(len(request.query_params.dict())))
